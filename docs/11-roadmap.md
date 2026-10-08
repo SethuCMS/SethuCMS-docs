@@ -2,6 +2,22 @@
 
 Estimates assume one or two engineers and are rough planning guesses, not benchmarks.
 
+## Where we are (October 2026)
+
+| Phase | State |
+|---|---|
+| 1. Foundation | Done: core (29 tests), adapter contract and test kit |
+| 2. Security spine | Mostly done: vault, token auth, audit log, network guard, rate limits, idempotency. Single sign-on not built |
+| 3. First path | Done: PostgreSQL adapter and gateway, tested against a live database |
+| 4. More adapters | Memory and PostgreSQL only. MongoDB, Firestore, MySQL, SQL Server, DynamoDB not started |
+| 5. Admin UI | Done for the first release: connections, content editing with drafts, publish, live preview, access, audit, settings |
+| 6. SDKs | TypeScript, Python and Dart written. Dart and the Go adapter template have not been run |
+| 7. Hardening | Not started: load tests, penetration review, key-rotation drill, cloud-identity connections |
+
+Also done outside the original plan: CI/CD workflows for every repository, a one-image release build, and agent guides (`AGENTS.md`).
+
+Next, in this order: run the full build on a clean machine and fix what it finds; align `anydbcms-infra` with the single-image gateway; add MongoDB, MySQL and Firestore adapters; add single sign-on; add a shared state store so more than one gateway can run.
+
 ```mermaid
 gantt
     title AnyDB CMS MVP (weeks)

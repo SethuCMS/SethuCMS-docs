@@ -88,7 +88,7 @@
 \noindent AnyDB CMS is a database-agnostic CMS and admin layer. It connects to SQL, document, key-value and realtime databases, including cloud-hosted ones such as Firebase, Supabase, Neon, MongoDB Atlas, AWS, Google Cloud and Azure, and gives every client stack one REST/GraphQL API and one admin UI.
 
 \medskip
-\noindent\textbf{Status:} design phase. This document describes what to build and why. Nothing described here is implemented yet. ``anydbcms'' is a working name; check domain, package scope and trademark before committing. Time and file-count figures are planning estimates, not benchmarks.
+\noindent\textbf{Status:} the core, the memory and PostgreSQL adapters, the gateway, the admin app, drafts, publish and live preview are built and tested locally. The early sections describe the full design, parts of which are still future work; the later sections describe what is built and how to build, run and deploy it. The Roadmap section lists what is done and what is next. ``anydbcms'' is a working name; check domain, package scope and trademark before committing. Time and file-count figures are planning estimates, not benchmarks.
 \end{abstract}
 
 \tableofcontents
@@ -646,6 +646,8 @@ Each first-party SDK adds the same small set of behaviours: a \emph{client} (bas
 
 %--------------------------------------------------------------------
 \section{Deployment}
+\emph{Built today:} one container that runs the gateway and serves the admin app on a single port, with its state in one volume (see the next sections). This section describes the larger target design: separate api and worker pods, a queue and a managed control-plane database. The worker, the queue and the shared control-plane database are not built yet, and the Kubernetes and Terraform files in \code{anydbcms-infra} follow the larger design.
+
 
 \subsection{Environments and services}
 \begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.0cm}>{\raggedright\arraybackslash}p{4.2cm}X@{}}
@@ -683,7 +685,251 @@ The CI/CD pipeline runs lint, type-check and unit tests; the conformance suite p
 Control-plane backups use automated backups and point-in-time recovery. The KMS key is backed up separately; without it, stored secrets cannot be decrypted even from an intact backup. Run a key-rotation drill before launch.
 
 %--------------------------------------------------------------------
+\begingroup\raggedright
+\section{Gateway}
+The gateway (\code{anydbcms/apps/api}) is the one process between every client and every database. It holds credentials, applies permissions, keeps drafts and writes the audit log. Clients never talk to a database.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance=6mm and 8mm]
+  \node[box] (req) {Request};
+  \node[sbox,right=of req] (pre) {Id, CORS,\\[-2pt]route, limits};
+  \node[sbox,right=of pre] (auth) {Token auth,\\[-2pt]role};
+  \node[sbox,right=of auth] (idem) {Idempotency\\[-2pt]key};
+  \node[box,below=of auth] (h) {Handler:\\[-1pt]\footnotesize permissions, validation};
+  \node[box,right=of h] (ga) {GuardedAdapter};
+  \node[db,right=of ga] (d) {Database};
+  \node[sbox,below=of h] (au) {Audit log, events};
+  \draw[arr] (req) -- (pre); \draw[arr] (pre) -- (auth); \draw[arr] (auth) -- (idem);
+  \draw[arr] (idem.south) |- (h.east |- idem.south) -- (h.north east);
+  \draw[arr] (h) -- (ga); \draw[arr] (ga) -- (d); \draw[arr] (h) -- (au);
+\end{tikzpicture}
+\caption{Request pipeline. A failure at any step becomes the standard error body; database text never leaves the server.}
+\end{figure}
+
+\subsection{Many databases at once}
+A connection is a saved row: name, adapter type, mode, settings, encrypted credentials and the collections it exposes. The registry opens an adapter on first use and keeps it open, so memory, PostgreSQL and further connections run side by side, each with its own pool, capabilities and content model. A new connection is read-only and every collection is hidden until an administrator exposes it.
+
+\subsection{Security controls}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.6cm}X@{}}
+\toprule
+\textbf{Control} & \textbf{How it works}\\
+\midrule
+API tokens & Roles admin, editor, viewer. Only SHA-256 hashes are stored; comparison is timing-safe\\
+Vault & AES-256-GCM, bound to the connection or draft id so ciphertext cannot be moved. Protects database credentials and drafts\\
+Secrets & Vault key, cursor secret and preview secret are required in production; generated into an owner-only file locally\\
+Network guard & Cloud metadata and link-local addresses always blocked; private ranges blocked unless allowed\\
+Rate limits & Per address and per token\\
+Idempotency & Repeating a write with the same \code{Idempotency-Key} returns the first answer\\
+Audit & Append-only JSON lines with secrets redacted\\
+Admin page & Served with a strict content security policy\\
+\bottomrule
+\end{tabularx}\smallskip
+
+\subsection{Known limits}
+Single process per data folder (file state, per-process rate limits and events); three fixed roles; no single sign-on; events cover only changes made through the gateway; a short DNS-rebinding window in the network guard; adapters run in-process, so gRPC adapters are not wired yet.
+
+%--------------------------------------------------------------------
+\endgroup\begingroup\raggedright
+\section{Drafts, Publishing and Live Preview}
+Editing never touches the database. Every edit is a draft stored encrypted in the gateway. The database changes only when someone presses Publish, through the same checked write path as any other change.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance=9mm and 14mm]
+  \node[sbox] (dr) {draft};
+  \node[sbox,right=of dr] (pb) {publishing};
+  \node[sbox,right=of pb] (pd) {published};
+  \node[sbox,below=of dr] (dc) {discarded};
+  \draw[arr] (dr) -- node[above,font=\scriptsize]{publish} (pb);
+  \draw[arr] (pb) -- node[above,font=\scriptsize]{written} (pd);
+  \draw[darr] (pb.south) to[bend left=25] node[below,font=\scriptsize]{failed or conflict} (dr.south east);
+  \draw[arr] (dr) -- node[left,font=\scriptsize]{discard} (dc);
+  \draw[arr] (dr) to[loop above] node[above,font=\scriptsize]{save, version+1} (dr);
+\end{tikzpicture}
+\caption{Draft life cycle.}
+\end{figure}
+
+\subsection{What the editor sees}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{2.6cm}>{\raggedright\arraybackslash}p{4.4cm}X@{}}
+\toprule
+\textbf{Step} & \textbf{Admin app} & \textbf{Gateway}\\
+\midrule
+Start typing & ``Saving draft'', then ``Draft saved'' & Creates the draft, version 1\\
+Keep typing & Saves 0.7 s after the last key & Replaces the draft, version + 1\\
+Preview & Pane updates as you type & Streams the draft merged over the published record\\
+Publish & ``Published'' & Validates, checks for conflicts, writes, removes the draft\\
+Discard & Draft disappears & Marks discarded; database untouched\\
+Record changed elsewhere & Conflict panel & Refuses with \code{409 record_changed}\\
+\bottomrule
+\end{tabularx}\smallskip
+
+\subsection{Three protections}
+\begin{enumerate}
+  \item \textbf{Version check.} A save states the version it started from; a stale save gets \code{409} and nothing is lost.
+  \item \textbf{Fingerprint check.} A draft of an existing record stores a hash of that record. If the row changed since (another editor, or a direct database change), publish stops and shows the difference. The editor reloads, or chooses Publish anyway (\code{force}, recorded in the audit log).
+  \item \textbf{Claim before write.} Publish first moves the draft to \code{publishing}, so a double click or retry cannot write twice.
+\end{enumerate}
+
+\subsection{Storage}
+Drafts live in the gateway's state store, never in the customer database, encrypted with AES-256-GCM bound to the draft id. Read-only connections can hold drafts, but publish is refused on them. Deleting the gateway data folder deletes unpublished drafts; published content stays in the customer database.
+
+\subsection{Live preview}
+A preview link is \code{base64url(claims).hmac}. Claims name the draft and the token that created it, and expire after 15 minutes. \code{GET /v1/preview/:token} returns the published record with the draft applied, masked for the creator; \code{/events} streams the same payload whenever the draft changes. Revoking the creating token kills the link. A preview link cannot publish or read anything else.
+
+\subsection{API summary}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{6.4cm}X@{}}
+\toprule
+\textbf{Request} & \textbf{Purpose}\\
+\midrule
+\code{POST .../collections/:n/drafts} & Create a draft\\
+\code{GET .../collections/:n/drafts} & List drafts\\
+\code{PATCH .../drafts/:id} & Save (send \code{version})\\
+\code{DELETE .../drafts/:id} & Discard\\
+\code{POST .../drafts/:id/publish} & Publish (\code{version}, optional \code{force})\\
+\code{POST .../drafts/:id/preview-link} & Create a preview link\\
+\code{GET /v1/preview/:token[/events]} & Read, then stream the preview\\
+\bottomrule
+\end{tabularx}\par\smallskip
+Only fields in the content model can be saved (unknown fields return \code{400}). Required-field errors appear at publish time so half-written entries can always be saved.
+
+%--------------------------------------------------------------------
+\section{Build and Run}
+\subsection{Requirements}
+Node.js 20 or newer and pnpm, with these repositories cloned side by side: \code{anydbcms}, \code{anydbcms-adapter-sdk}, \code{anydbcms-adapters} and \code{anydbcms-admin}. Until packages are published, they link to each other by folder, so the folder names matter.
+
+\subsection{Build and start}
+\begin{lstlisting}[language=bash]
+cd ~/anydbcms
+sh scripts/build-all.sh     # core, adapter-sdk, adapters, gateway, admin
+sh scripts/run-local.sh     # http://127.0.0.1:8080
+\end{lstlisting}
+The first start prints an administrator token once; paste it into the sign-in page, or set \code{ANYDBCMS_ADMIN_TOKEN} (32 to 200 characters) beforehand. Data (connections, drafts, tokens, audit log, generated secrets) is kept in \code{.anydbcms-data/}; back it up and do not commit it.
+
+\subsection{Connect a database}
+Open Connections and add a connection; it starts read-only with all tables hidden. Expose the tables you want, switch to read-write if editing is needed, then edit under Content.
+
+\subsection{Tests}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{4.4cm}X@{}}
+\toprule
+\textbf{Suite} & \textbf{Result recorded}\\
+\midrule
+Core & 29 tests passing\\
+Gateway & 52 tests passing\\
+Live PostgreSQL & 9 of 9 passing (injection safety, drafts, direct-change conflict, concurrent databases, read-only)\\
+Admin app & Type check clean; 15 of 15 browser tests passing\\
+\bottomrule
+\end{tabularx}\par\smallskip
+Not yet verified: the build scripts under pnpm on a fresh machine, Docker images, the Dart SDK and the Go adapter server.
+
+\subsection{Production settings}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{5.6cm}X@{}}
+\toprule
+\textbf{Setting} & \textbf{Why}\\
+\midrule
+\code{NODE_ENV=production} & Refuses to start without secrets; turns off demo data and private networks\\
+\code{ANYDBCMS_VAULT_KEY}, \code{ANYDBCMS_CURSOR_SECRET}, \code{ANYDBCMS_PREVIEW_SECRET} & One random value each; keep in a secrets manager\\
+\code{ANYDBCMS_ADMIN_TOKEN} & First administrator; create others, then rotate it\\
+\code{ANYDBCMS_ALLOWED_ORIGINS} & Only the sites allowed to call the API\\
+\code{ANYDBCMS_TRUST_PROXY=true} & Only behind a proxy you control\\
+TLS & Terminate HTTPS in front of the gateway\\
+\bottomrule
+\end{tabularx}\smallskip
+
+%--------------------------------------------------------------------
+\begingroup\raggedright
+\section{CI/CD Pipelines}
+Every repository has its own GitHub Actions workflows. They are kept in \code{anydbcms/ci-workflows/} and copied into each repository's \code{.github/} folder with \code{sh scripts/install-ci.sh}, because tools that edit files for you cannot write into \code{.github}. Each repository has a ``CI OK'' job that gathers the results into one check, which is the one to require in branch protection.
+
+\subsection{What runs where}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.3cm}>{\raggedright\arraybackslash}p{4.6cm}X@{}}
+\toprule
+\textbf{Repository} & \textbf{On every push and pull request} & \textbf{On a \code{v*} tag}\\
+\midrule
+anydbcms & Core and gateway tests on Node 20 and 22, gateway against live PostgreSQL, dependency audit, CodeQL & Builds one container image (gateway with admin inside), pushes it to the GitHub registry, scans it, creates a release\\
+adapter-sdk & Type check, build, tests on Node 20 and 22 & Packed package attached to a release\\
+adapters & Same, plus live PostgreSQL & Packed packages attached to a release\\
+admin & Type check, both builds, check that fonts are bundled, CodeQL & Built app attached to a release\\
+sdk-ts & Type check, build, tests on Node 20 and 22 & Packed package attached to a release\\
+sdk-python & Tests on Python 3.9 to 3.13, package build & Wheel and source package attached\\
+sdk-dart & Format, analyze, test & Release created\\
+adapter-template-python & Generated protocol code is up to date, tests on Python 3.10 to 3.13 & ---\\
+adapter-template-go & Generate protocol code, vet, test with the race detector, build & ---\\
+infra & Compose, Kubernetes and Terraform checks, configuration scan, Dockerfile lint & ---\\
+docs & Link check, schema check, PDF build & PDF attached to a release\\
+\bottomrule
+\end{tabularx}\par\smallskip
+Dependabot is switched on in every repository for its package ecosystem and for the workflow actions themselves.
+
+\subsection{How the linked repositories are built}
+Until the packages are published, the repositories link to each other by folder. A workflow therefore checks out its own repository and the ones it needs side by side, then builds them in dependency order: core, adapter SDK, adapters, gateway, admin. If the repositories are private, add a repository secret named \code{CROSS_REPO_TOKEN} with read access.
+
+\subsection{Release image}
+\code{anydbcms/docker/Dockerfile.gateway} builds from the folder that holds the four repositories. The image runs as a non-root user, keeps data in a \code{/data} volume, has a health check, and refuses to start in production mode without the three secrets. The build records provenance and a software bill of materials. The image still contains development dependencies, so it is larger than it needs to be.
+
+\subsection{Not covered yet}
+Deployment to a cloud (Terraform apply, Kubernetes rollout) needs your cloud credentials and is not written. Nothing is published to npm, PyPI or pub.dev yet. The workflows install with \code{--no-frozen-lockfile} until lockfiles are refreshed and committed. They have been checked for valid YAML only; they have not run on GitHub.
+
+\subsection{Tooling decision: Node and pnpm}
+The standard is Node 22 with pnpm 9. Bun starts the gateway and passes the unit tests I tried, so it is fine for local use, but it is not the supported path: the folder links, the lockfiles, the workflows and the Docker build were all built and tested on pnpm. Moving to Bun would mean re-testing all of them.
+\endgroup
+
+%--------------------------------------------------------------------
+\begingroup\raggedright
+\section{Deploy to Production}
+This is the checklist for running the gateway and admin app for real use. The steps follow the code and the Dockerfile as written. The gateway and its production checks are tested; the container image, the compose and Kubernetes files and the workflows have not been run end to end, so do the verify steps before trusting them.
+
+\subsection{What you deploy}
+One container runs the gateway and serves the built admin app from the same address: one port (8080), one URL, no extra CORS setup. Put a reverse proxy or load balancer in front for HTTPS. A volume mounted at \code{/data} holds connections, drafts, tokens and the audit log. The gateway reaches your databases from the container.
+
+\subsection{Steps}
+\begin{enumerate}
+  \item \textbf{Build the image.} From the folder that holds the four repositories: \code{docker build -f anydbcms/docker/Dockerfile.gateway -t anydbcms .}, or push a \code{v*} tag and let GitHub build it.
+  \item \textbf{Create the secrets} once and keep them in a secrets manager: vault key, cursor secret and preview secret (\code{openssl rand -base64 32} each) and the first admin token (\code{openssl rand -hex 32}). Back up the vault key separately. Without it, saved database passwords and drafts cannot be decrypted.
+  \item \textbf{Run it} with the volume on \code{/data}, the four secrets as environment variables, and \code{ANYDBCMS_TRUST_PROXY=true} only when a proxy you control is in front.
+  \item \textbf{Verify.} \code{/v1/health} and \code{/v1/ready} answer; sign in; add a test connection, expose a collection, create a draft, preview it, publish; confirm Audit shows the publish.
+\end{enumerate}
+In production mode the gateway refuses to start if a secret is missing, turns off the demo connection, and turns off private-network database access unless asked.
+
+\subsection{Day-two operations}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.0cm}X@{}}
+\toprule
+\textbf{Task} & \textbf{How}\\
+\midrule
+Back up & The \code{/data} volume and the secrets; test a restore\\
+Rotate the admin token & Create a new admin token under Access, sign in with it, revoke the old one\\
+Upgrade & Start the new image on the same volume and secrets, run the verify steps, keep the old image for rollback\\
+Logs & One JSON line per request on standard output, secrets removed; alert on 5xx and repeated 401 or 429\\
+Database users & Give each connection the fewest rights you can; keep it read-only until editing is needed\\
+\bottomrule
+\end{tabularx}\par\smallskip
+
+\subsection{Limits to plan around}
+One gateway process per data volume (state is a file; rate limits, idempotency keys and live events are per process), so do not run two replicas on the same data. Three fixed roles and no single sign-on. Live events show only changes made through the gateway. The image still contains development dependencies. Deploy workflows (Terraform apply, Kubernetes rollout) are not written.
+
+\subsection{Checklist for an agent doing a deploy}
+Read \code{AGENTS.md}; confirm the tests pass; build the image and confirm it refuses to start with a secret missing; confirm health and ready; never print or commit secrets; do not run \code{git commit}, \code{git push}, \code{terraform apply} or change a live environment unless the owner said to; report exactly what was verified and what was not.
+\endgroup
+
+%--------------------------------------------------------------------
+\endgroup
 \section{Roadmap}
+\subsection*{Where we are (October 2026)}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.4cm}X@{}}
+\toprule
+\textbf{Phase} & \textbf{State}\\
+\midrule
+Foundation & Done: core (29 tests), adapter contract and test kit\\
+Security spine & Mostly done: vault, token auth, audit log, network guard, rate limits, idempotency. Single sign-on not built\\
+First path & Done: PostgreSQL adapter and gateway, tested against a live database\\
+More adapters & Memory and PostgreSQL only; MongoDB, Firestore, MySQL, SQL Server and DynamoDB not started\\
+Admin UI & Done for the first release: connections, content editing with drafts, publish, live preview, access, audit, settings\\
+SDKs & TypeScript, Python and Dart written; Dart and the Go adapter template have not been run\\
+Hardening & Not started: load tests, penetration review, key-rotation drill, cloud-identity connections\\
+\bottomrule
+\end{tabularx}\par\smallskip
+Also done beyond the original plan: CI/CD workflows for every repository, a one-image release build, and agent guides. Next, in order: run the full build on a clean machine and fix what it finds; align \code{anydbcms-infra} with the single-image gateway; add MongoDB, MySQL and Firestore adapters; add single sign-on; add a shared state store so more than one gateway can run.
+
 Estimates assume one or two engineers and are rough planning guesses, not benchmarks.
 
 \begin{figure}[h]

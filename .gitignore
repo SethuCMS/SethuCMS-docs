@@ -1,0 +1,12 @@
+# LaTeX build files (the finished PDF, latex/anydbcms-design-docs.pdf, is kept)
+*.aux
+*.log
+*.toc
+*.out
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+latex/main.pdf
+# Editors and system files
+.DS_Store
+node_modules/
