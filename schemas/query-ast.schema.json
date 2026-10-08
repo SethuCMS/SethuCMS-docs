@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anydbcms.dev/schemas/query-ast.schema.json",
+  "title": "AnyDB CMS portable query AST",
+  "type": "object",
+  "required": ["collection"],
+  "additionalProperties": false,
+  "properties": {
+    "collection": { "type": "string", "minLength": 1 },
+    "filter": { "$ref": "#/$defs/filter" },
+    "sort": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["field"],
+        "additionalProperties": false,
+        "properties": {
+          "field": { "type": "string" },
+          "dir": { "enum": ["asc", "desc"], "default": "asc" }
+        }
+      }
+    },
+    "projection": { "type": "array", "items": { "type": "string" } },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "limit": { "type": "integer", "minimum": 1, "maximum": 500, "default": 50 },
+        "cursor": { "type": ["string", "null"] }
+      }
+    }
+  },
+  "$defs": {
+    "filter": {
+      "oneOf": [
+        { "$ref": "#/$defs/comparison" },
+        {
+          "type": "object", "required": ["and"], "additionalProperties": false,
+          "properties": { "and": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/filter" } } }
+        },
+        {
+          "type": "object", "required": ["or"], "additionalProperties": false,
+          "properties": { "or": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/filter" } } }
+        },
+        {
+          "type": "object", "required": ["not"], "additionalProperties": false,
+          "properties": { "not": { "$ref": "#/$defs/filter" } }
+        }
+      ]
+    },
+    "comparison": {
+      "type": "object",
+      "required": ["field", "op"],
+      "additionalProperties": false,
+      "properties": {
+        "field": { "type": "string" },
+        "op": {
+          "enum": ["eq", "ne", "lt", "lte", "gt", "gte", "in", "nin",
+                   "contains", "startsWith", "exists"]
+        },
+        "value": {}
+      }
+    }
+  }
+}
