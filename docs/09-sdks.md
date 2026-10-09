@@ -16,9 +16,9 @@ flowchart LR
 
 | Language | Package | Approach |
 |---|---|---|
-| TypeScript / JavaScript | `@anydbcms/sdk` | Hand-tuned, first class |
-| Dart / Flutter | `anydbcms` (pub.dev) | Generated models + hand-written client |
-| Python | `anydbcms` (PyPI) | Generated models + hand-written client |
+| TypeScript / JavaScript | `@sethucms/sdk` | Hand-tuned, first class |
+| Dart / Flutter | `sethucms` (pub.dev) | Generated models + hand-written client |
+| Python | `sethucms` (PyPI) | Generated models + hand-written client |
 | Kotlin / Java | generated | Android and JVM |
 | Swift | generated | iOS |
 | Go, C#, PHP, Ruby, Rust | generated | On demand |
@@ -41,7 +41,7 @@ Each first-party SDK adds the same small set of behaviours:
 ## Dart example (shape only)
 
 ```dart
-final client = AnyDbClient(baseUrl: url, token: token);
+final client = SethuClient(baseUrl: url, token: token);
 final page = await client
     .collection('c1', 'orders')
     .where('status', eq: 'paid')
@@ -53,7 +53,7 @@ final page = await client
 ## Python example (shape only)
 
 ```python
-client = AnyDbClient(base_url=url, token=token)
+client = SethuClient(base_url=url, token=token)
 for order in client.collection("c1", "orders").where("status", "eq", "paid").iterate():
     print(order["id"])
 ```

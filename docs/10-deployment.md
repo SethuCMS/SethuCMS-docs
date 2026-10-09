@@ -1,6 +1,6 @@
 # 10. Deployment
 
-> **Built today:** a single container that runs the gateway and serves the admin app on one port, with its state in one volume. How to build, run and operate it is in [15. Deploy to production](15-deploy-production.md). This page describes the larger target design (separate api and worker pods, queue, managed control-plane database). The worker, queue and shared control-plane database are not built yet, and the Kubernetes and Terraform files in `anydbcms-infra` follow that larger design.
+> **Built today:** a single container that runs the gateway and serves the admin app on one port, with its state in one volume. How to build, run and operate it is in [15. Deploy to production](15-deploy-production.md). This page describes the larger target design (separate api and worker pods, queue, managed control-plane database). The worker, queue and shared control-plane database are not built yet, and the Kubernetes and Terraform files in `sethucms-infra` follow that larger design.
 
 ## Environments
 
@@ -73,7 +73,7 @@ Secrets come from a secrets manager, not from `.env` files in production.
 
 ## CI/CD
 
-Each repository has its own GitHub Actions workflows (see the CI/CD section of the PDF, and `anydbcms/ci-workflows/`). A tag such as `v0.1.0` builds and publishes the container image. The target pipeline is:
+Each repository has its own GitHub Actions workflows (see the CI/CD section of the PDF, and `sethucms/ci-workflows/`). A tag such as `v0.1.0` builds and publishes the container image. The target pipeline is:
 
 1. Lint, type-check, unit tests
 2. Conformance suite per adapter (against containerised databases)

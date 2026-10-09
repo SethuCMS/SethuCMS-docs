@@ -1,7 +1,7 @@
 # 13. Drafts, publishing and live preview
 
 This page explains how an edit travels from the editor's keyboard to the customer's database, and what protects it on the way.
-It matches the code in `anydbcms/apps/api/src/content/drafts.ts` and `anydbcms-admin/src/components/RecordEditor.tsx`.
+It matches the code in `sethucms/apps/api/src/content/drafts.ts` and `sethucms-admin/src/components/RecordEditor.tsx`.
 
 ## The idea in one paragraph
 

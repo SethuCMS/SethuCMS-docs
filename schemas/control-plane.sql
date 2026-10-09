@@ -1,4 +1,4 @@
--- AnyDB CMS control-plane schema (PostgreSQL)
+-- SethuCMS control-plane schema (PostgreSQL)
 -- Platform metadata only. Customer data never lives here.
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;

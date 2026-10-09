@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://anydbcms.dev/schemas/query-ast.schema.json",
-  "title": "AnyDB CMS portable query AST",
+  "$id": "https://sethucms.dev/schemas/query-ast.schema.json",
+  "title": "SethuCMS portable query AST",
   "type": "object",
   "required": ["collection"],
   "additionalProperties": false,

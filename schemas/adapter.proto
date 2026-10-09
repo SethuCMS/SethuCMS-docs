@@ -1,8 +1,8 @@
-// AnyDB CMS adapter protocol.
+// SethuCMS adapter protocol.
 // An adapter implements this service in any language. The gateway calls it.
 syntax = "proto3";
 
-package anydbcms.adapter.v1;
+package sethucms.adapter.v1;
 
 import "google/protobuf/struct.proto";
 

@@ -1,8 +1,8 @@
-# AnyDB CMS: Documentation
+# SethuCMS: Documentation
 
-**One CMS for every database.** AnyDB CMS connects to SQL, document, key-value and realtime databases (including cloud-hosted ones such as Firebase, Supabase, Neon, MongoDB Atlas, AWS, Google Cloud and Azure) and gives every client stack (Next.js, Flutter, Python, mobile) one REST/GraphQL API and one admin UI.
+**One CMS for every database.** SethuCMS connects to SQL, document, key-value and realtime databases (including cloud-hosted ones such as Firebase, Supabase, Neon, MongoDB Atlas, AWS, Google Cloud and Azure) and gives every client stack (Next.js, Flutter, Python, mobile) one REST/GraphQL API and one admin UI.
 
-> Status: the core, two adapters (memory, PostgreSQL), the gateway, the admin app, drafts, publish and live preview are built and tested locally. Pages 1 to 11 describe the full design (parts of it are still future work); pages 12 to 15 describe what is built and how to run and deploy it. See the [roadmap](docs/11-roadmap.md) for what is done and what is next.
+> Status (0.1.0): the core, six adapters (memory, PostgreSQL, SQLite, MySQL/MariaDB, MongoDB, Firestore), the gateway, the admin app, drafts, publish, live preview, single sign-on, change feed and webhooks are built. PostgreSQL, MySQL, MariaDB and SQLite are tested against real servers. MongoDB and Firestore are only tested against stand-ins. The container image, deploy workflows and a real identity provider have not been run end to end. Pages 1 to 11 describe the full design (parts of it are still future work); pages 12 to 25 describe what is built and how to run, deploy and use it. See the [roadmap](docs/11-roadmap.md) for what is done and what is next.
 
 ## Reading order
 
@@ -23,12 +23,22 @@
 | 13 | [Drafts and publishing](docs/13-drafts-and-publishing.md) | Drafts, publish, conflict checks, live preview |
 | 14 | [Build and run](docs/14-build-and-run.md) | Build everything and run it on your machine |
 | 15 | [Deploy to production](docs/15-deploy-production.md) | One image, secrets, HTTPS, verify, operate, limits |
+| 16 | [Logging and monitoring](docs/16-logging-and-monitoring.md) | Log fields, metrics, alerts, audit chain, shipping logs |
+| 17 | [Moving data](docs/17-migration.md) | Copy one database into another: plan, create tables, ids, safety, limits |
+| 18 | [Database adapters](docs/18-adapters.md) | The six adapters, their settings, and what each was really tested on |
+| 19 | [Open-source release checklist](docs/19-open-source-release.md) | What to do before and on the day the repositories go public |
+| 20 | [Sponsorship and funding](docs/20-sponsorship.md) | Where sponsorship can go, what it pays for, rules for sponsors |
+| 21 | [Single sign-on](docs/21-sso.md) | Sign in with an identity provider (OIDC) |
+| 22 | [Deploy to the cloud](docs/22-deploy-cloud.md) | Cloud Run and a VPS with Compose |
+| 23 | [gRPC adapters](docs/23-grpc-adapters.md) | Write an adapter in another language |
+| 24 | [Changes and webhooks](docs/24-changes-and-webhooks.md) | The change feed and outgoing webhooks |
+| 25 | [Use it from your app](docs/25-use-from-your-app.md) | Install the SDK, call it from Next.js, React, Angular or plain JavaScript |
 
-A printable version is in [`latex/`](latex) (`anydbcms-design-docs.pdf`). Instructions for coding agents are in each repository's `AGENTS.md`. Decision records live in [`docs/adr/`](docs/adr). Machine-readable schemas live in [`schemas/`](schemas).
+A printable version is in [`latex/`](latex) (`sethucms-design-docs.pdf`). Instructions for coding agents are in each repository's `AGENTS.md`. Decision records live in [`docs/adr/`](docs/adr). Machine-readable schemas live in [`schemas/`](schemas).
 
 ## Conventions
 
 - Diagrams are Mermaid and render on GitHub.
 - "MVP" means the first release: Postgres, MySQL, MongoDB, Firestore, SQL Server, DynamoDB.
 - Time and file-count estimates are planning guesses, not benchmarks.
-- "anydbcms" is the working name. Check domain, npm scope and trademark before committing.
+- The npm scope is `@sethucms`. Trademark and domain checks are listed in the [release checklist](docs/19-open-source-release.md).

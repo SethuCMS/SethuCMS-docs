@@ -38,6 +38,9 @@ A connection is a saved row (name, adapter type, mode, settings, encrypted crede
 an adapter for a connection the first time it is used and keeps it open. Each connection has its own adapter, pool,
 capabilities and content model. New connections are read-only with every collection hidden until an admin turns collections on.
 
+You can have up to 50 connections open at the same time, of different database types, and an editor can work across them
+(each API route names its connection). To move data from one connection into another, see [17 Moving data](17-migration.md).
+
 ## Drafts
 
 ```mermaid
@@ -74,9 +77,15 @@ Direct database changes made by other tools are not seen (change streams from th
 
 See `apps/api/.env.example`. Secrets (vault key, cursor secret, preview secret) are required in production and generated into the data
 folder for local use. State is one JSON file written atomically with owner-only permissions: right for one process. For several
-gateways, implement `StateStore` on a shared database and move rate limits and idempotency keys to a shared store.
+gateways, set `SETHUCMS_STATE_URL` to a PostgreSQL address (doc 22). Rate limits stay per gateway.
+
+## Data folder lock, token lifetimes, migration history
+
+- `gateway.lock` in the data folder keeps two gateways from sharing it (doc 15). `SETHUCMS_FORCE_LOCK=1` overrides it for recovery.
+- Tokens may carry `expiresInDays` when created. `POST /v1/admin/tokens/:id/rotate` (admin) makes a replacement and lets the old token run for a grace period (`graceMinutes`, default 60, `0` revokes at once).
+- Migration jobs are saved to the data folder and survive restarts (doc 17).
+- Connection kinds: `memory`, `postgres`, `sqlite`, `mysql`, `mongodb`, `firestore` (doc 18).
 
 ## What is not built yet
 
-Single sign-on (OIDC), per-collection custom roles in the gateway (the core engine supports them), adapters beyond memory and
-PostgreSQL, adapters in other languages over gRPC, change streams, the worker, and a shared state store for multiple gateways.
+Custom roles in the gateway (three fixed roles: admin, editor, viewer), native database change capture (the change feed only sees changes made through the gateway), a webhook screen in the admin app, SSE `Last-Event-ID` replay, and shared rate limits. Single sign-on (doc 21), shared state and the worker (doc 22), gRPC adapters (doc 23) and the change feed and webhooks (doc 24) exist but are tested only as those docs say: no real identity provider, no cloud deploy run. Never claim more.

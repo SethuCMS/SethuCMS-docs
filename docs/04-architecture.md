@@ -12,7 +12,7 @@ flowchart LR
     end
     ADM[Admin UI<br/>React + Refine]
 
-    subgraph AnyDB CMS
+    subgraph SethuCMS
         GW[API Gateway<br/>REST + GraphQL + OpenAPI]
         AUTH[Auth<br/>OIDC, RBAC, field/row rules]
         WK[Worker pool<br/>isolated adapter runners]

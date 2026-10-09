@@ -1,4 +1,4 @@
-# LaTeX build files (the finished PDF, latex/anydbcms-design-docs.pdf, is kept)
+# LaTeX build files (the finished PDF, latex/sethucms-design-docs.pdf, is kept)
 *.aux
 *.log
 *.toc

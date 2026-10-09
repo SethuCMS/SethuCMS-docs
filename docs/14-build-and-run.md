@@ -8,18 +8,18 @@ This is the complete path from empty folders to a working CMS with the admin app
 - The repositories cloned side by side in one folder:
 
 ```
-~/anydbcms               core + gateway (apps/api) + scripts
-~/anydbcms-adapter-sdk   what an adapter must implement
-~/anydbcms-adapters      memory and PostgreSQL adapters
-~/anydbcms-admin         the admin app (React)
+~/sethucms               core + gateway (apps/api) + scripts
+~/sethucms-adapter-sdk   what an adapter must implement
+~/sethucms-adapters      memory and PostgreSQL adapters
+~/sethucms-admin         the admin app (React)
 ```
 
-Until the packages are published to npm, they find each other by folder (`link:` dependencies), so the folder names above matter.
+Building the gateway from source still finds the other repositories by folder (`link:` dependencies), so the folder names above matter. If you only want to call a running gateway from your own app, you do not need any of this: install `@sethucms/sdk` from npm (see page 25).
 
 ## Build
 
 ```sh
-cd ~/anydbcms
+cd ~/sethucms
 sh scripts/build-all.sh
 ```
 
@@ -39,9 +39,9 @@ sh scripts/run-local.sh
 ```
 
 Open http://127.0.0.1:8080. On the first start the terminal prints an admin token **once**. Paste it into the sign-in page.
-To choose your own token, set `ANYDBCMS_ADMIN_TOKEN` (32 to 200 characters) before starting.
+To choose your own token, set `SETHUCMS_ADMIN_TOKEN` (32 to 200 characters) before starting.
 
-The first start also creates `.anydbcms-data/` with `secrets.json` (owner-only), saved connections, drafts, tokens and the audit log.
+The first start also creates `.sethucms-data/` with `secrets.json` (owner-only), saved connections, drafts, tokens and the audit log.
 Back this folder up; do not commit it (it is already in `.gitignore`).
 
 ## Connect your own database
@@ -57,29 +57,29 @@ You can add as many connections as you like. They run at the same time, for exam
 ## Run the tests
 
 ```sh
-cd ~/anydbcms && pnpm --filter @anydbcms/core test          # 29 tests
-cd ~/anydbcms/apps/api && pnpm test                         # 52 gateway tests
-cd ~/anydbcms-admin && pnpm exec tsc --noEmit               # type check
+cd ~/sethucms && pnpm --filter @sethucms/core test          # 29 tests
+cd ~/sethucms/apps/api && pnpm test                         # 52 gateway tests
+cd ~/sethucms-admin && pnpm exec tsc --noEmit               # type check
 ```
 
 Optional live PostgreSQL test (needs a throw-away database):
 
 ```sh
 docker run -d --name pgtest -e POSTGRES_PASSWORD=test -p 55432:5432 postgres:16
-ANYDBCMS_TEST_PG_HOST=127.0.0.1 ANYDBCMS_TEST_PG_PORT=55432 \
-ANYDBCMS_TEST_PG_USER=postgres ANYDBCMS_TEST_PG_PASSWORD=test \
-ANYDBCMS_TEST_PG_DB=postgres pnpm test
+SETHUCMS_TEST_PG_HOST=127.0.0.1 SETHUCMS_TEST_PG_PORT=55432 \
+SETHUCMS_TEST_PG_USER=postgres SETHUCMS_TEST_PG_PASSWORD=test \
+SETHUCMS_TEST_PG_DB=postgres pnpm test
 ```
 
 ## Develop the admin app with hot reload
 
 ```sh
-cd ~/anydbcms/apps/api && node dist/src/main.js          # gateway on :8080
-cd ~/anydbcms-admin && cp .env.example .env              # VITE_API_URL=http://127.0.0.1:8080
+cd ~/sethucms/apps/api && node dist/src/main.js          # gateway on :8080
+cd ~/sethucms-admin && cp .env.example .env              # VITE_API_URL=http://127.0.0.1:8080
 pnpm dev                                                 # admin on :5173
 ```
 
-Add `ANYDBCMS_ALLOWED_ORIGINS=http://localhost:5173` to the gateway so the browser may call it. With `VITE_API_URL` empty the admin
+Add `SETHUCMS_ALLOWED_ORIGINS=http://localhost:5173` to the gateway so the browser may call it. With `VITE_API_URL` empty the admin
 shows built-in sample data instead of a real gateway.
 
 ## Going to production
@@ -87,10 +87,10 @@ shows built-in sample data instead of a real gateway.
 | Setting | Why |
 | --- | --- |
 | `NODE_ENV=production` | Refuses to start without secrets; turns off the demo and private networks |
-| `ANYDBCMS_VAULT_KEY`, `ANYDBCMS_CURSOR_SECRET`, `ANYDBCMS_PREVIEW_SECRET` | `openssl rand -base64 32` each; keep in a secret manager |
-| `ANYDBCMS_ADMIN_TOKEN` | Your first admin; make more tokens in **Access**, then rotate this one |
-| `ANYDBCMS_ALLOWED_ORIGINS` | Only the sites that may call the API |
-| `ANYDBCMS_TRUST_PROXY=true` | Only behind a proxy you control |
+| `SETHUCMS_VAULT_KEY`, `SETHUCMS_CURSOR_SECRET`, `SETHUCMS_PREVIEW_SECRET` | `openssl rand -base64 32` each; keep in a secret manager |
+| `SETHUCMS_ADMIN_TOKEN` | Your first admin; make more tokens in **Access**, then rotate this one |
+| `SETHUCMS_ALLOWED_ORIGINS` | Only the sites that may call the API |
+| `SETHUCMS_TRUST_PROXY=true` | Only behind a proxy you control |
 | TLS | Terminate HTTPS in front of the gateway (load balancer or reverse proxy) |
 
 Limits to plan around: one gateway process per data folder (state is a file, rate limits are per process), three fixed roles,
@@ -101,8 +101,8 @@ no single sign-on yet, and events only for changes made through the gateway. Pag
 | Message | Cause and fix |
 | --- | --- |
 | `pnpm: command not found` | `npm i -g pnpm` |
-| "Missing .../anydbcms-adapters" | Clone the sibling repos next to `anydbcms` |
-| `Cannot find module '@anydbcms/...'` | Run `sh scripts/build-all.sh` again; steps must run in order |
-| Sign-in says token rejected | Use the token printed on first start, or set `ANYDBCMS_ADMIN_TOKEN` and restart |
-| Connection refused for a database | Private addresses are blocked in production; set `ANYDBCMS_ALLOW_PRIVATE_NETWORKS=true` if intended |
+| "Missing .../sethucms-adapters" | Clone the sibling repos next to `sethucms` |
+| `Cannot find module '@sethucms/...'` | Run `sh scripts/build-all.sh` again; steps must run in order |
+| Sign-in says token rejected | Use the token printed on first start, or set `SETHUCMS_ADMIN_TOKEN` and restart |
+| Connection refused for a database | Private addresses are blocked in production; set `SETHUCMS_ALLOW_PRIVATE_NETWORKS=true` if intended |
 | Fonts look wrong | Rebuild the admin app; fonts are bundled, not loaded from the internet |

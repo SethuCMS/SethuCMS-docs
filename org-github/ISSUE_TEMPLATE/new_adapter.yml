@@ -1,0 +1,20 @@
+name: Request or announce a database adapter
+description: Ask for support for a database, or say you are building one
+labels: [adapter]
+body:
+  - type: input
+    id: db
+    attributes:
+      label: Database and version
+    validations: { required: true }
+  - type: dropdown
+    id: who
+    attributes:
+      label: Who will write it?
+      options: [I want to write it, I would like someone else to, Not sure]
+    validations: { required: true }
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything unusual about this database?
+      description: For example no joins, no transactions, schemaless, special pagination, how users authenticate.

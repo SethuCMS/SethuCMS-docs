@@ -1,8 +1,8 @@
-# AGENTS.md — anydbcms-docs
+# AGENTS.md — sethucms-docs
 
 Design documents, schemas and the LaTeX/PDF.
 
-This repository is one part of AnyDB CMS. **Read `../anydbcms/AGENTS.md` first** for the whole picture, the security rules that must not be broken, and the working agreements.
+This repository is one part of SethuCMS. **Read `../sethucms/AGENTS.md` first** for the whole picture, the security rules that must not be broken, and the working agreements.
 
 ## Build and test
 

@@ -6,7 +6,7 @@ Content tools are tied to one database. Strapi and Directus are SQL-only, FireCM
 
 ## Product
 
-AnyDB CMS is a **database-agnostic CMS and admin layer**:
+SethuCMS is a **database-agnostic CMS and admin layer**:
 
 - Connect any supported database, including bring-your-own cloud databases.
 - Introspect it, describe it as a canonical content model, and edit it through one admin UI.
