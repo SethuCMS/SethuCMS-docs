@@ -1,5 +1,7 @@
 # 19. Open-source release checklist
 
+> Status: 0.1.0 is released. All ten packages are on npm under `@sethucms`, and the repositories are public. Keep this list for the next release and for the items still open: branch protection, community-health files, npm trusted publishing and two-factor on the owner account.
+
 The code is MIT licensed (`LICENSE` in every repository). This list is what to do before the repositories go public. Items marked **owner** need a person; they are not things a coding agent should do.
 
 ## Before making anything public

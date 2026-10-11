@@ -2,11 +2,14 @@
 
 \usepackage[utf8]{inputenc}
 \usepackage[margin=2.3cm]{geometry}
-\usepackage{microtype}
+\usepackage[expansion=false]{microtype}
 \usepackage{xcolor}
 \usepackage{booktabs}
 \usepackage{tabularx}
 \usepackage{longtable}
+\usepackage{calc}
+\usepackage{xstring}
+\usepackage{seqsplit}
 \usepackage{array}
 \usepackage{enumitem}
 \usepackage{fancyhdr}
@@ -33,7 +36,9 @@
 \fancyfoot[C]{\small\thepage}
 \renewcommand{\headrulewidth}{0.3pt}
 
-\newcommand{\code}[1]{\texttt{\detokenize{#1}}}
+\providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\newcommand{\code}[1]{\IfSubStr{\detokenize{#1}}{ }{\texttt{\detokenize{#1}}}{\texttt{\expandafter\seqsplit\expandafter{\detokenize{#1}}}}}
+\emergencystretch=3em
 
 \lstdefinestyle{code}{
   basicstyle=\ttfamily\footnotesize,
@@ -88,7 +93,7 @@
 \noindent SethuCMS is a database-agnostic CMS and admin layer. It connects to SQL, document, key-value and realtime databases, including cloud-hosted ones such as Firebase, Supabase, Neon, MongoDB Atlas, AWS, Google Cloud and Azure, and gives every client stack one REST/GraphQL API and one admin UI.
 
 \medskip
-\noindent\textbf{Status:} the core, the memory and PostgreSQL adapters, the gateway, the admin app, drafts, publish and live preview are built and tested locally. The early sections describe the full design, parts of which are still future work; the later sections describe what is built and how to build, run and deploy it. The Roadmap section lists what is done and what is next. ``sethucms'' is a working name; check domain, package scope and trademark before committing. Time and file-count figures are planning estimates, not benchmarks.
+\noindent\textbf{Status (0.1.0, released October 2026):} the core, six adapters (memory, PostgreSQL, SQLite, MySQL/MariaDB, MongoDB, Firestore), the gateway, the admin app, drafts, publish, live preview, single sign-on, the change feed and webhooks are built, and all ten packages are on npm under \code{@sethucms}. PostgreSQL, MySQL, MariaDB and SQLite are tested against real servers; MongoDB and Firestore only against stand-ins. A hosted gateway with the admin app runs on Vercel with its state in Firestore. The early sections describe the full design, parts of which are still future work; the later sections describe what is built and how to build, run, deploy and use it. The Roadmap section lists what is done and what is next. Time and file-count figures are planning estimates, not benchmarks.
 \end{abstract}
 
 \tableofcontents
@@ -963,6 +968,1064 @@ Memory to memory; PostgreSQL to PostgreSQL with ids kept, and renumbered with fo
 
 %--------------------------------------------------------------------
 \endgroup
+%--------------------------------------------------------------------
+\section{Database adapters}
+
+The gateway ships with these adapters. Each one is a separate package in
+\code{sethucms-adapters}, passes the same conformance suite, and is
+checked by the same guard layer (field allowlist, parameters only,
+permission engine).
+
+\begingroup\footnotesize\begin{longtable}[]{@{}>{\raggedright\arraybackslash}p{(\linewidth-10\tabcolsep)/5}>{\raggedright\arraybackslash}p{(\linewidth-10\tabcolsep)/5}>{\raggedright\arraybackslash}p{(\linewidth-10\tabcolsep)/5}>{\raggedright\arraybackslash}p{(\linewidth-10\tabcolsep)/5}>{\raggedright\arraybackslash}p{(\linewidth-10\tabcolsep)/5}@{}}
+\toprule\noalign{}
+Adapter & Kind & Package & Driver & Tested against \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Memory & \code{memory} & \code{@sethucms/adapter-memory} & none &
+in-process \\
+PostgreSQL & \code{postgres} & \code{@sethucms/adapter-postgres} &
+\code{pg} & PostgreSQL 16 \\
+SQLite & \code{sqlite} & \code{@sethucms/adapter-sqlite} &
+Node\textquotesingle s built-in \code{node:sqlite} & real SQLite
+files \\
+MySQL / MariaDB & \code{mysql} & \code{@sethucms/adapter-mysql} &
+\code{mysql2} (peer) & \textbf{MariaDB 10.11} and \textbf{MySQL 8.0}
+(real servers, full conformance suite) and Dolt \\
+MongoDB & \code{mongodb} & \code{@sethucms/adapter-mongodb} &
+\code{mongodb} (peer) & \textbf{FerretDB 1.24} (MongoDB-compatible), not
+MongoDB itself \\
+Firestore & \code{firestore} & \code{@sethucms/adapter-firestore} &
+\code{@google-cloud/firestore} (peer) & an \textbf{in-memory fake}, not
+Firestore \\
+\end{longtable}\endgroup
+
+Read the "Tested against" column before you rely on an adapter. A
+compatible server is not the real thing: MySQL, MariaDB, MongoDB and
+Firestore have not been run through these tests, and you should run the
+live tests (below) against your own server before production use.
+
+Peer drivers are not installed for you. Add the one you need to the
+gateway (\code{pnpm add mysql2} in \code{apps/api}).
+
+\subsection{Shared rules}
+
+\begin{itemize}
+\tightlist
+\item
+  Passwords and keys go in the connection\textquotesingle s credentials,
+  which the vault encrypts. They never appear in settings, logs or error
+  messages.
+\item
+  Network connections go through the gateway\textquotesingle s network
+  guard (private ranges blocked in production unless
+  \code{SETHUCMS_ALLOW_PRIVATE_NETWORKS=true}).
+\item
+  Connections can be read-only. Writes are then refused before reaching
+  the driver.
+\item
+  Every adapter can \emph{create} a missing collection when a migration
+  asks for it (doc 17).
+\end{itemize}
+
+\subsection{SQLite}
+
+For small sites, edge deployments and local work. A "connection" is a
+\textbf{file on the gateway\textquotesingle s disk}.
+
+\begingroup\footnotesize\begin{longtable}[]{@{}>{\raggedright\arraybackslash}p{(\linewidth-4\tabcolsep)/2}>{\raggedright\arraybackslash}p{(\linewidth-4\tabcolsep)/2}@{}}
+\toprule\noalign{}
+Setting & Meaning \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\code{path} & \code{:memory:} or a file name \textbf{inside} the folder
+set by \code{SETHUCMS_SQLITE_DIR} \\
+\code{busyTimeoutMs} & how long to wait for a lock (0-60000, default
+5000) \\
+\end{longtable}\endgroup
+
+\begin{itemize}
+\tightlist
+\item
+  File databases are off until \code{SETHUCMS_SQLITE_DIR} is set. Paths
+  with \code{..}, absolute paths outside the folder, and URIs are
+  refused.
+\item
+  Needs \textbf{Node 22.5 or newer} (\code{node:sqlite}). The Docker
+  image must use Node 22.
+\item
+  SQLite allows one writer at a time. Do not point another program at a
+  file the gateway is writing unless you accept lock waits.
+\item
+  Back up with the SQLite backup API or by copying the file while the
+  gateway is stopped. Copying a live file can give a torn copy.
+\end{itemize}
+
+\subsection{MySQL and MariaDB}
+
+\begingroup\footnotesize\begin{longtable}[]{@{}>{\raggedright\arraybackslash}p{(\linewidth-4\tabcolsep)/2}>{\raggedright\arraybackslash}p{(\linewidth-4\tabcolsep)/2}@{}}
+\toprule\noalign{}
+Setting & Meaning \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\code{host}, \code{port} & server address (port default 3306) \\
+\code{database} & database name \\
+\code{ssl} & default \textbf{true}; turn off only on a trusted private
+link \\
+\code{maxConnections} & 1-20, default 5 \\
+\code{statementTimeoutMs} & 100-120000, default 15000 \\
+credentials \code{user}, \code{password} & encrypted in the vault \\
+\end{longtable}\endgroup
+
+\begin{itemize}
+\tightlist
+\item
+  Identifiers are quoted with backticks and values are always
+  parameters.
+\item
+  Pagination is offset based.
+\item
+  \code{LIKE} wildcards in user text are escaped.
+\item
+  Not verified on MySQL 5.7 or 9, or other MariaDB versions. MariaDB
+  10.11 and MySQL 8.0 are verified. It has no real JSON type (JSON is
+  LONGTEXT plus a \code{json_valid} check), and the adapter finds those
+  columns from the check; a bug where they came back as text was found
+  and fixed that way.
+\end{itemize}
+
+\subsection{MongoDB}
+
+MongoDB has no schema, so the adapter works out collection shapes by
+\textbf{sampling documents}, or you declare them.
+
+\begingroup\footnotesize\begin{longtable}[]{@{}>{\raggedright\arraybackslash}p{(\linewidth-4\tabcolsep)/2}>{\raggedright\arraybackslash}p{(\linewidth-4\tabcolsep)/2}@{}}
+\toprule\noalign{}
+Setting & Meaning \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\code{host}, \code{port}, \code{srv} & address; \code{srv: true} for
+Atlas \code{mongodb+srv} (no port) \\
+\code{database}, \code{authSource} & database, and where the user is
+defined (default \code{admin}) \\
+\code{tls} & default \textbf{true} \\
+\code{sampleSize} & documents sampled per collection (1-1000, default
+100) \\
+\code{collections} & declared definitions that replace sampling \\
+\code{maxConnections}, \code{statementTimeoutMs} & as above \\
+\end{longtable}\endgroup
+
+\begin{itemize}
+\tightlist
+\item
+  Integer ids are issued from a counter collection
+  \code{_sethucms_counters}; declared and discovered shapes are kept in
+  \code{_sethucms_schemas}. Both are hidden from content.
+\item
+  Queries are built as typed documents from the allowlisted filter tree.
+  Operators in user values (\code{$ne}, \code{$where}) are rejected
+  before they reach the driver.
+\item
+  Sampling can miss rare fields. Declare the collections you care about.
+\item
+  Tested against FerretDB 1.24 only. Real MongoDB behaviour (collation,
+  index use, transactions) is not verified.
+\end{itemize}
+
+\subsection{Firestore}
+
+\begingroup\footnotesize\begin{longtable}[]{@{}>{\raggedright\arraybackslash}p{(\linewidth-4\tabcolsep)/2}>{\raggedright\arraybackslash}p{(\linewidth-4\tabcolsep)/2}@{}}
+\toprule\noalign{}
+Setting & Meaning \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\code{projectId}, \code{databaseId} & project and database (default
+\code{(default)}) \\
+\code{emulatorHost} & \code{host:port} of the emulator, for development
+only \\
+\code{sampleSize}, \code{collections} & as for MongoDB \\
+\code{maxScanDocuments} & most documents a text search may read
+(10-50000, default 5000) \\
+credentials \code{serviceAccount} & service account key JSON, encrypted
+in the vault; otherwise Google default credentials \\
+\end{longtable}\endgroup
+
+\begin{itemize}
+\tightlist
+\item
+  Firestore cannot do OR with inequality, several inequality fields, or
+  arbitrary text search. The gateway \textbf{refuses} such queries
+  (\code{CAPABILITY_UNSUPPORTED}) instead of approximating them.
+\item
+  \code{contains} and \code{startsWith} on text are done by reading up
+  to \code{maxScanDocuments} documents; they are slow and bounded on
+  purpose.
+\item
+  Integer ids come from \code{_sethucms_counters}, as for MongoDB.
+\item
+  \textbf{The content adapter was only tested against an in-memory fake
+  that we wrote.} (The gateway\textquotesingle s shared state store, a
+  different piece of code, is also tested against the Firestore
+  emulator; see doc 26.) The adapter has never talked to Firestore or
+  the emulator. Treat this adapter as experimental until you have run it
+  against the emulator or a test project.
+\end{itemize}
+
+\subsection{Running the live tests against your own server}
+
+From \code{sethucms-adapters}:
+
+\begin{lstlisting}[language=sh]
+SETHUCMS_TEST_PG_URL=postgres://user:pass@host:5432/db  pnpm --filter @sethucms/adapter-postgres test
+SETHUCMS_TEST_MYSQL_URL=mysql://user:pass@host:3306     pnpm --filter @sethucms/adapter-mysql test
+SETHUCMS_TEST_MONGO_URL=mongodb://host:27017            pnpm --filter @sethucms/adapter-mongodb test
+\end{lstlisting}
+
+The tests create and drop their own scratch database or collections. Use
+a throwaway server. Without these variables the live tests are skipped.
+
+\subsection{Writing your own adapter}
+
+Implement the \code{Adapter} contract (doc 5) and run
+\code{defineConformanceSuite}. SQL databases should build on
+\code{@sethucms/adapter-sql-kit}, which holds the dialects, query
+builders, table creation and row normalising shared by PostgreSQL, MySQL
+and SQLite. Optional methods: \code{createCollection} (needed for
+migration table creation) and \code{finishBulkLoad} (for example, moving
+a sequence past copied ids).
+
+%--------------------------------------------------------------------
+\section{Open-source release checklist}
+
+\begin{quote}
+Status: 0.1.0 is released. All ten packages are on npm under
+\code{@sethucms}, and the repositories are public. Keep this list for
+the next release and for the items still open: branch protection,
+community-health files, npm trusted publishing and two-factor on the
+owner account.
+\end{quote}
+
+The code is MIT licensed (\code{LICENSE} in every repository). This list
+is what to do before the repositories go public. Items marked
+\textbf{owner} need a person; they are not things a coding agent should
+do.
+
+\subsection{Before making anything public}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Secrets scan, whole history.} Run a scanner over every
+  repository\textquotesingle s full git history (for example
+  \code{gitleaks detect} or \code{trufflehog git file://.}). One leaked
+  key in an old commit is public once the repository is. If anything is
+  found, rotate the secret first, then clean the history. \textbf{owner}
+\item
+  \textbf{Read the code you are publishing.} Remove private notes,
+  customer names, internal URLs and test data that is not synthetic.
+\item
+  \textbf{Licences of dependencies.} Run a licence report
+  (\code{pnpm licenses list}) and check that nothing conflicts with MIT.
+  Add the peer drivers (\code{mysql2}, \code{mongodb},
+  \code{@google-cloud/firestore}) to your list; they are not bundled.
+\item
+  \textbf{Name and trademark.} Search for "Sethu" and "SethuCMS" in the
+  trade-mark registers of the countries you care about and in package
+  registries and domain names. MIT gives no trademark rights; decide
+  whether you want a trademark policy. \textbf{owner}
+\item
+  \textbf{Be honest in the README.} Keep the "tested against" table from
+  doc 18. Say that MySQL, MongoDB and Firestore adapters have only been
+  run against stand-ins, and that deploy workflows and the container
+  image are unverified.
+\item
+  \textbf{Security contact.} Enable \emph{private vulnerability
+  reporting} in each repository (Settings, Code security). Check
+  \code{SECURITY.md} names it. \textbf{owner}
+\end{enumerate}
+
+\subsection{The organisation profile}
+
+The \code{org-github/} folder holds the community files (code of
+conduct, contributing guide, issue and pull request templates, security
+policy). Publish it as a repository named \code{.github} inside the
+\code{sethucms} organisation. GitHub then applies those files to every
+repository that has none of its own. Some tools cannot write
+\code{.github} paths, so copy the folder yourself. \textbf{owner}
+
+\subsection{Day of release}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Make repositories public in dependency order: \code{sethucms},
+  \code{sethucms-adapter-sdk}, \code{sethucms-adapters},
+  \code{sethucms-admin}, then the rest.
+\item
+  Turn on branch protection for \code{main}: pull request required,
+  tests must pass, no force pushes.
+\item
+  Turn on Dependabot alerts and secret scanning (free for public
+  repositories).
+\item
+  Publish packages to npm in the order given in \code{RELEASING.md} in
+  the \code{sethucms} repository (core, adapter SDK, SQL kit, adapters,
+  then the TypeScript SDK). The ten 0.1.0 packages were packed and
+  installed together in a clean folder and all import; the shared
+  conformance suite passes from the installed copies. After publishing,
+  remove the \code{link:} overrides from \code{sethucms-adapter-sdk} and
+  \code{sethucms-adapters} and check that a plain \code{npm install}
+  works.
+\item
+  Tag a first release with notes that list what is verified and what is
+  not.
+\end{enumerate}
+
+\subsection{After release}
+
+\begin{itemize}
+\tightlist
+\item
+  Watch issues and security reports for the first weeks; reply within a
+  few days even if only to say you saw it.
+\item
+  Label a few small issues \code{good first issue}.
+\item
+  Re-read doc 18 whenever an adapter is tested against a real server,
+  and update its row.
+\end{itemize}
+
+%--------------------------------------------------------------------
+\section{Sponsorship and funding}
+
+SethuCMS is free, open-source software (MIT licence). Sponsorship is how
+people who use it can help keep it maintained. This page says how
+funding is set up, what it pays for, and what sponsors do and do not
+get.
+
+This page is a plan and a set of rules, not legal or tax advice. Items
+marked \textbf{check} were not verified.
+
+\subsection{Where the money can go}
+
+\begingroup\footnotesize\begin{longtable}[]{@{}>{\raggedright\arraybackslash}p{(\linewidth-6\tabcolsep)/3}>{\raggedright\arraybackslash}p{(\linewidth-6\tabcolsep)/3}>{\raggedright\arraybackslash}p{(\linewidth-6\tabcolsep)/3}@{}}
+\toprule\noalign{}
+Route & Fits now? & Notes \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\textbf{GitHub Sponsors on your personal profile} (\code{kasinadhsarma})
+& \textbf{Yes, start here} & GitHub lists India as a supported region.
+Signing up needs an Indian bank account. Sponsorships from personal
+accounts carry no GitHub fee. Sponsorships from organisation accounts
+can carry fees of up to 6\% (card and service), lower if they pay by
+invoice. \\
+GitHub Sponsors for the \textbf{SethuCMS organisation} & Not yet &
+GitHub requires an organisation to be legally operating in a supported
+region. A GitHub organisation alone, with no registered entity behind
+it, is not enough. Revisit if you later register one. \textbf{check}
+with GitHub\textquotesingle s current rules when you do. \\
+Open Collective with a fiscal host & Later & A host holds the money and
+does the paperwork for a project. Whether a host will take an
+India-based project without a registered entity, and the
+host\textquotesingle s fee, are \textbf{check}. \\
+Other tip jars (Liberapay, Ko-fi and similar) & Optional & Add only if
+people ask. Each one is another account to run and report. \\
+Grants and programmes for open source & Later & Many require a project
+that is already used by real people, and some require a registered
+organisation. \textbf{check} each one. \\
+\end{longtable}\endgroup
+
+\subsection{Setting it up (you do these steps)}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  \textbf{GitHub Sponsors:} open \url{https://github.com/sponsors} and
+  apply for your personal profile. GitHub will ask for payout details
+  and tax information. These are your own financial details, so enter
+  them yourself and never share them in chat or in an issue.
+\item
+  \textbf{Profile text:} say what SethuCMS is, what the money pays for
+  (below), and that it is free software with no paid features.
+\item
+  \textbf{Tiers:} a one-time option and two or three monthly options are
+  enough. Suggested shape (you decide the amounts):
+
+  \begingroup\footnotesize\begin{longtable}[]{@{}>{\raggedright\arraybackslash}p{(\linewidth-4\tabcolsep)/2}>{\raggedright\arraybackslash}p{(\linewidth-4\tabcolsep)/2}@{}}
+  \toprule\noalign{}
+  Tier & What the sponsor gets \\
+  \midrule\noalign{}
+  \endhead
+  \bottomrule\noalign{}
+  \endlastfoot
+  Backer & A thank-you, and a name in \code{SPONSORS.md} if they
+  agree \\
+  Supporter & The same, and a name or logo in the README if they
+  agree \\
+  Organisation sponsor & The same, plus a link to their site in the
+  README \\
+  \end{longtable}\endgroup
+
+  Nothing in any tier changes what the software does or what anyone can
+  use.
+\item
+  \textbf{Button:} put \code{org-github/FUNDING.yml} in the root of the
+  organisation\textquotesingle s \code{.github} repository so every
+  repository shows a Sponsor button.
+\item
+  \textbf{Ask a chartered accountant} before you accept money: how
+  sponsorship income is reported, whether foreign payments have any
+  rules or limits, and when a registered entity would make sense.
+  \textbf{check}
+\end{enumerate}
+
+\subsection{What the money pays for}
+
+\begin{itemize}
+\tightlist
+\item
+  Test servers and services (real MySQL, MongoDB, Firestore and cloud
+  databases for the adapter tests)
+\item
+  A domain name and hosting for the docs
+\item
+  An independent security review before a stable release
+\item
+  Small fixed rewards for accepted contributions, if you choose to offer
+  them
+\end{itemize}
+
+Publish a short summary of income and spending each quarter, even if it
+is two lines.
+
+\subsection{Rules for sponsors}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Sponsors cannot buy decisions.} Money does not buy roadmap
+  control, security exceptions, early access to vulnerabilities, or
+  changes to the licence.
+\item
+  \textbf{No access to anyone\textquotesingle s data.} Sponsors never
+  get access to a deployment, a database or logs.
+\item
+  \textbf{No paid features.} The software stays free. Support requests
+  from sponsors are answered in the same queue as everyone
+  else\textquotesingle s.
+\item
+  \textbf{Names are opt-in.} A sponsor\textquotesingle s name or logo
+  appears in the README or \code{SPONSORS.md} only if they agree. A name
+  can be personal data under GDPR, so remove it on request.
+\item
+  \textbf{You may decline a sponsor} whose business or conduct conflicts
+  with the project. Say so plainly and refund if the platform allows it.
+\item
+  \textbf{Security reports are never for sale.} Reports go to the
+  private channel in \code{SECURITY.md}, from sponsors or anyone else.
+\end{itemize}
+
+\subsection{Before you ask for money}
+
+People sponsor software they trust. Before you announce this, the
+project should have a version someone else can install and run. Until
+the Docker image is verified and the adapters other than PostgreSQL and
+SQLite have been tried on real servers, ask for feedback first and
+sponsorship second.
+
+\subsection{Open questions for you}
+
+\begin{itemize}
+\tightlist
+\item
+  Which amounts for the tiers?
+\item
+  Do you want to offer contribution rewards, or keep all money for
+  infrastructure and the security review?
+\item
+  Do you plan to register an entity later (company, trust or society)?
+  That decides whether to move to an organisation sponsor profile or a
+  fiscal host.
+\end{itemize}
+
+%--------------------------------------------------------------------
+\section{Single sign-on (OpenID Connect)}
+
+People sign in to the admin app with your company login (Okta, Google
+Workspace, Microsoft Entra, Keycloak, Auth0 and so on). The gateway
+never sees their password.
+
+\textbf{Status:} tested against a small fake identity provider written
+for the tests, not against a real Okta, Google or Entra. Try yours in a
+staging setup first.
+
+\subsection{How it works}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  The admin app shows "Sign in with single sign-on" when
+  \code{GET /v1/auth/config} says it is on.
+\item
+  The browser goes to \code{/v1/auth/oidc/login}, then to your provider
+  (authorization code flow with PKCE).
+\item
+  The provider sends the browser back to \code{/v1/auth/oidc/callback}.
+  The gateway checks the ID token (signature RS256, PS256 or ES256;
+  issuer, audience, expiry, nonce) and maps a claim to a role.
+\item
+  The gateway makes a short-lived session token and sends the browser to
+  the admin app with it in the URL fragment (after \code{#}, which is
+  never sent to a server). The admin app stores it and clears the
+  address bar.
+\end{enumerate}
+
+The login attempt is kept in an encrypted, HttpOnly cookie, so the
+callback may land on any gateway when several share state (doc 22).
+
+\subsection{Set it up}
+
+Register an application at your provider. Redirect URI:
+\code{https://YOUR-CMS/v1/auth/oidc/callback}. Then set:
+
+\begingroup\footnotesize\begin{longtable}[]{@{}>{\raggedright\arraybackslash}p{(\linewidth-4\tabcolsep)/2}>{\raggedright\arraybackslash}p{(\linewidth-4\tabcolsep)/2}@{}}
+\toprule\noalign{}
+Setting & Meaning \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\code{SETHUCMS_OIDC_ISSUER} & The provider\textquotesingle s issuer
+address (https, except loopback for tests). Turns SSO on. \\
+\code{SETHUCMS_PUBLIC_URL} & The address people use to reach the CMS. \\
+\code{SETHUCMS_OIDC_CLIENT_ID}, \code{SETHUCMS_OIDC_CLIENT_SECRET} &
+From the provider. \\
+\code{SETHUCMS_OIDC_SCOPES} & Default \code{openid profile email}.
+\code{openid} is required. \\
+\code{SETHUCMS_OIDC_ROLE_CLAIM} & Claim that holds groups. Default
+\code{groups}. \\
+\code{SETHUCMS_OIDC_ADMIN_VALUES}, \code{_EDITOR_VALUES},
+\code{_VIEWER_VALUES} & Comma-separated group values per role. Highest
+match wins (admin, editor, viewer). \\
+\code{SETHUCMS_OIDC_DEFAULT_ROLE} & Role for people who match no group:
+\code{editor} or \code{viewer}. Never \code{admin}. Leave empty to
+refuse them. \\
+\code{SETHUCMS_OIDC_ALLOWED_DOMAINS} & Optional email domains allowed.
+Needs \code{email_verified} true. \\
+\code{SETHUCMS_OIDC_SESSION_HOURS} & Session length. Default 8. \\
+\code{SETHUCMS_ADMIN_URL} & Where to send the browser afterwards. \\
+\end{longtable}\endgroup
+
+\subsection{Limits}
+
+\begin{itemize}
+\tightlist
+\item
+  Three fixed roles (admin, editor, viewer). Custom roles are not built.
+\item
+  A person has at most 5 live sessions. \code{POST /v1/auth/logout} ends
+  one; an admin can revoke any token.
+\item
+  Group changes at the provider apply at the next sign-in, not to a
+  session already running.
+\item
+  Sign-ins and denials are in the audit log.
+\end{itemize}
+
+%--------------------------------------------------------------------
+\section{Several gateways, and cloud deploys}
+
+\subsection{Shared state}
+
+Set \code{SETHUCMS_STATE_URL} to a PostgreSQL address and any number of
+gateways can run against the same state.
+
+What is shared: connections, tokens and sessions, the audit log (one
+hash chain per gateway process, all verifiable through
+\code{/v1/admin/audit/verify}), Idempotency-Key answers, live events
+(relayed with LISTEN/NOTIFY), the change feed and webhook deliveries
+(doc 24), and migration job records with a heartbeat so one gateway does
+not take over a job another is still running.
+
+What is \textbf{not} shared:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Rate limits are per gateway.} With N gateways the effective
+  limit is up to N times the setting.
+\item
+  Open database connections stay in the gateway that opened them.
+\item
+  Token revocation and connection edits reach other gateways within
+  \code{SETHUCMS_STATE_POLL_MS} (default 1000) or sooner by
+  notification.
+\end{itemize}
+
+Rules in shared mode: secrets must come from the environment (the vault
+key, cursor secret and preview secret must be the same on every
+gateway), and the data-folder lock is skipped. Use
+\code{SETHUCMS_DATA_DIR=memory} on hosts without a disk.
+
+\textbf{Status:} tested with two gateways on a real PostgreSQL 16
+(concurrent writes, revocation, audit chains, idempotency across
+gateways, event relay). Not tested under real load or with a managed
+Postgres.
+
+\subsection{The worker}
+
+Webhooks (doc 24) are sent by a worker. By default each gateway runs one
+inline; deliveries are claimed with \code{FOR UPDATE SKIP LOCKED}, so
+several never send the same one twice at the same time. To run it apart:
+\code{SETHUCMS_WORKER=off} on the gateways and
+\code{node dist/src/worker.js} (same image, different command) with the
+same \code{SETHUCMS_STATE_URL} and secrets.
+
+\subsection{Deploy workflows}
+
+The files are in \code{deploy/github-workflows/}. GitHub only reads
+\code{.github/workflows/}, so copy them there (they could not be written
+there from the tool that made them).
+
+\begingroup\footnotesize\begin{longtable}[]{@{}>{\raggedright\arraybackslash}p{(\linewidth-4\tabcolsep)/2}>{\raggedright\arraybackslash}p{(\linewidth-4\tabcolsep)/2}@{}}
+\toprule\noalign{}
+File & Does \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\code{sethucms-ci.yml} & Checks out all four repositories, builds, runs
+the tests with a Postgres service. \\
+\code{sethucms-release-image.yml} & On a \code{v*} tag, builds the image
+and pushes it to GHCR with provenance and an SBOM. \\
+\code{deploy-cloud-run.yml} & Builds into Artifact Registry and deploys
+to Cloud Run (Workload Identity Federation, secrets from Secret
+Manager). Uses \code{--min-instances 1 --no-cpu-throttling} so the
+inline worker keeps running. \\
+\code{deploy-vps-compose.yml} & Copies \code{compose.production.yml} and
+the Caddyfile to your server over SSH (pinned host key) and restarts.
+Secrets stay in \code{/opt/sethucms/.env} on the server. \\
+\end{longtable}\endgroup
+
+Before first use: set the repository variables named at the top of each
+file, and set \code{SETHUCMS_OWNER} if the other three repositories are
+under another owner. Pin the actions to commit SHAs (they use version
+tags now; the SHAs could not be looked up when they were written).
+
+\textbf{Status:} the YAML parses and passes actionlint. None of the
+workflows, the image build, the compose file or Caddy have been run.
+Expect to fix small things on the first run. The image is built for
+amd64 only.
+
+%--------------------------------------------------------------------
+\section{Adapters in other languages (gRPC)}
+
+Write an adapter in Python, Go or any language with gRPC, run it as its
+own service, and add it as a \code{grpc} connection.
+
+The contract is
+\code{sethucms-adapter-sdk/proto/sethucms/adapter/v1/adapter.proto}
+(protocol version 1). Calls are unary: Describe, Connect, Capabilities,
+Introspect, Find, Get, Create, Update, Delete, Disconnect,
+CreateCollection, FinishBulkLoad. Payloads are JSON in string fields,
+with the same shapes as the TypeScript \code{Adapter} interface.
+(\code{Disconnect} is not named \code{Close} because gRPC clients
+already have a \code{close()}.)
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Auth:} \code{authorization: Bearer <token>} metadata. Your
+  service must check it.
+\item
+  \textbf{Errors:} return a gRPC status and put the SethuCMS error code
+  (for example \code{NOT_FOUND}, \code{CAPABILITY_UNSUPPORTED}) in
+  trailing metadata \code{sethucms-error-code}. Messages of internal
+  errors are hidden from API callers.
+\item
+  \textbf{Capabilities:} declare honestly what your database can do. If
+  you declare no inequality filters, the gateway refuses such queries
+  with \code{CAPABILITY_UNSUPPORTED} instead of sending them.
+\end{itemize}
+
+Connection config:
+\code{{ "address": "host:port", "tls": true, "caCert": "-----BEGIN…", "callTimeoutMs": 10000 }},
+credentials \code{{ "token": "…" }}. In production plain text to a
+non-loopback host is refused, and the network guard checks the address
+like any other database.
+
+Write a server in TypeScript with \code{serveAdapter()} from
+\code{@sethucms/adapter-sdk/grpc}. A complete Python server is in
+\code{sethucms-adapter-sdk/examples/python-minimal/server.py}. Check
+yours with the conformance suite (\code{defineConformanceSuite} in
+\code{@sethucms/adapter-sdk/testing}) by pointing a \code{GrpcAdapter}
+at it; \code{apps/api/tests/grpc-python.test.ts} shows how.
+
+\textbf{Status:} tested in-process (TypeScript server) and against the
+Python example, both passing the conformance suite. TLS with a custom CA
+is not tested. The older Python and Go template repositories were
+written before this protocol and probably need updating to match the
+proto.
+
+%--------------------------------------------------------------------
+\section{Change feed and webhooks}
+
+Every create, update and delete made \textbf{through the gateway} gets a
+number in an ordered feed.
+
+\subsection{Reading the feed}
+
+\code{GET /v1/changes?since=<n>&limit=<k>} returns
+\code{{ data, next, head, gap }}. Keep \code{next} and ask for it next
+time to resume. \code{gap: true} means the feed no longer holds changes
+from your \code{since}; do a full re-read. Callers only see changes to
+records they are allowed to see.
+
+\subsection{Webhooks (admin only, API only)}
+
+\begin{itemize}
+\tightlist
+\item
+  \code{POST /v1/admin/webhooks} \code{{ name, url, events }}
+  (\code{events} is a list of event types, or \code{["*"]}) returns the
+  signing secret \code{whsec_…} \textbf{once}. Also \code{GET},
+  \code{PATCH /:id}, \code{DELETE /:id}, and \code{GET /:id/deliveries}.
+\item
+  Delivery is at least once. Use the \code{X-Sethu-Delivery} header
+  (\code{evt_<number>}) to ignore repeats.
+\item
+  In production the URL must be https. The address is checked by the
+  network guard on every attempt, the connection is pinned to the
+  checked IP, redirects are not followed, 10 s timeout.
+\item
+  Retries wait 10 s, 30 s, 2 min, 10 min, 30 min, 1 h, 3 h; after 8
+  attempts the delivery is marked dead.
+\end{itemize}
+
+Verify a delivery (Node):
+
+\begin{lstlisting}
+import { createHmac, timingSafeEqual } from 'node:crypto';
+function verify(rawBody, header, secret) {
+  const parts = Object.fromEntries(header.split(',').map((p) => p.split('=')));
+  if (Math.abs(Date.now() / 1000 - Number(parts.t)) > 300) return false;
+  const expected = createHmac('sha256', secret).update(`${parts.t}.${rawBody}`).digest('hex');
+  const a = Buffer.from(expected), b = Buffer.from(parts.v1 ?? '');
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+\end{lstlisting}
+
+Header: \code{X-Sethu-Signature: t=<unix>,v1=<hex>}.
+
+\subsection{Not built}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Native change capture.} MongoDB change streams, Postgres
+  logical decoding and Firestore listeners are not used. Changes made
+  directly in the database, bypassing the gateway, do not appear.
+\item
+  No admin app screen for webhooks yet.
+\item
+  Live events (SSE) cannot resume with \code{Last-Event-ID}; use the
+  feed to catch up.
+\item
+  The file-based feed keeps up to one second of changes at risk in a
+  crash; the Postgres feed does not.
+\end{itemize}
+
+\textbf{Status:} tested (16 tests plus a standalone worker with two
+gateways on Postgres 16). Not tested against real receivers on the
+internet.
+
+%--------------------------------------------------------------------
+\section{Use it from your app}
+
+SethuCMS is an HTTP API with a TypeScript SDK. Any stack that can make
+HTTPS requests can use it: Next.js, React, Angular, plain JavaScript,
+Flutter, Python. There is no framework plugin to install.
+
+\subsection{Install the SDK}
+
+\begin{lstlisting}[language=sh]
+npm install @sethucms/sdk
+\end{lstlisting}
+
+\begin{lstlisting}
+import { SethuClient, eq } from '@sethucms/sdk';
+
+const cms = new SethuClient({ baseUrl: 'https://cms.example.com', token: () => getToken() });
+const orders = cms.collection('conn_123', 'orders');
+const page = await orders.where(eq('status', 'paid')).limit(20).list();
+\end{lstlisting}
+
+The SDK reference is in its README. The \code{baseUrl} must be https,
+except for localhost.
+
+The hosted gateway, the viewer token for a website and the safe way to
+add a content database are in doc 26.
+
+\subsection{Where the token lives}
+
+The token decides what the caller may read and write (see page 7). Treat
+it like a password.
+
+\begingroup\footnotesize\begin{longtable}[]{@{}>{\raggedright\arraybackslash}p{(\linewidth-6\tabcolsep)/3}>{\raggedright\arraybackslash}p{(\linewidth-6\tabcolsep)/3}>{\raggedright\arraybackslash}p{(\linewidth-6\tabcolsep)/3}@{}}
+\toprule\noalign{}
+Stack & Where to call the SDK & Token \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Next.js & Server Components, Server Actions and route handlers & Stays
+on the server \\
+React or Angular (browser) & In the browser & A short-lived user token
+from single sign-on (page 21). Never a service token \\
+Plain HTML & In the browser & Same as above; only for local testing with
+a test token \\
+\end{longtable}\endgroup
+
+\subsection{Example apps}
+
+The \code{sethucms-examples} repository has the same small app in four
+stacks: plain HTML, React (Vite), Angular and Next.js. Each lists your
+connections and collections, shows and edits records, follows live
+changes, and runs a self-check against your gateway. The React and
+Angular examples keep the token in the browser, which is fine for local
+testing only. The Next.js example keeps it on the server and is the
+pattern to copy for production.
+
+\subsection{What is not there yet}
+
+\begin{itemize}
+\tightlist
+\item
+  No \code{create-sethucms} starter and no React hooks or Angular
+  service library. You use the SDK directly.
+\item
+  Nuxt and other frameworks should work the same way, but they have not
+  been tested.
+\item
+  Row-level rules (for example, a vendor sees only their own rows) are
+  supported by the permission system, but a full multi-vendor app has
+  not been tested end to end.
+\item
+  No vendor or business dashboards yet.
+\end{itemize}
+
+%--------------------------------------------------------------------
+\section{Hosted gateway, admin app and your first content connection}
+
+This page covers the first live setup: the gateway on Vercel, the admin
+web app that comes with it, and how a website reads its content from a
+database it owns. It is written from the real 0.1.0 launch, including
+the mistakes worth avoiding.
+
+\subsection{What is running}
+
+\begingroup\footnotesize\begin{longtable}[]{@{}>{\raggedright\arraybackslash}p{(\linewidth-6\tabcolsep)/3}>{\raggedright\arraybackslash}p{(\linewidth-6\tabcolsep)/3}>{\raggedright\arraybackslash}p{(\linewidth-6\tabcolsep)/3}@{}}
+\toprule\noalign{}
+Piece & Where & Notes \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Gateway and admin web app & Vercel, one origin & The admin app is served
+by the gateway. It uses a hash router and keeps the sign-in token in
+\code{sessionStorage}, so closing the tab signs you out \\
+Gateway state & A Firestore project, collection prefix \code{sethucms} &
+Connections, tokens, sessions, the audit log, idempotency answers.
+Serverless functions share no disk, so state must live in a database
+(doc 22) \\
+Your content & Your own database, added as a \textbf{connection} & Kept
+separate from the state project \\
+Packages & npm, scope \code{@sethucms}, version 0.1.0 & Ten packages:
+core, adapter-sdk, sql-kit, postgres, mysql, sqlite, mongodb, firestore,
+memory, sdk-ts \\
+\end{longtable}\endgroup
+
+Keep two Firebase projects: one for the gateway\textquotesingle s own
+state and one for your content. If they are the same project, the state
+collections (connections, tokens, audit) sit next to your content and
+are one mistake away from being exposed.
+
+\subsection{Sign in to the admin app}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Open the gateway address in a browser.
+\item
+  Paste the admin token. It is an \textbf{admin} token created when the
+  gateway first started; it is not a viewer token.
+\item
+  Create a separate viewer token for each website (Access, then New
+  token). Give it the least role it needs.
+\end{enumerate}
+
+Treat the admin token like a root password: never paste it into a chat,
+a ticket or a screenshot, and clear your terminal after printing it.
+
+\subsection{Add your content database}
+
+In the admin app go to Connections, then Add, then choose Firestore. You
+need:
+
+\begin{itemize}
+\tightlist
+\item
+  \code{projectId}: the Firebase project that holds your content.
+\item
+  \code{databaseId}: leave as \code{(default)} unless you made a named
+  database.
+\item
+  A \textbf{service-account key} (JSON) for that project. Download it
+  from the Firebase console, store it as a file with mode 600, and paste
+  it into the credentials box. The vault encrypts it; it is never shown
+  again.
+\end{itemize}
+
+Then set:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Mode: read only.} A website that only shows content never
+  needs to write.
+\item
+  \textbf{Expose: none.} Start with every collection hidden, then expose
+  only the ones the site reads, for example \code{projects}.
+\end{itemize}
+
+Check the result with the connection detail page. It should list only
+the collections you chose as exposed, and the health check should be
+green.
+
+\subsubsection{The mistake to avoid}
+
+During the launch the first connection was created with expose set to
+all, and it was pointed at the state project. That published twelve
+internal collections (connections, tokens, audit and others) to every
+viewer token. The connection was deleted, every token revoked and new
+ones issued. The rules that came out of it:
+
+\begin{itemize}
+\tightlist
+\item
+  Never use \code{expose: all} on a project that also holds gateway
+  state.
+\item
+  Create connections with \code{expose: none} and add collections one at
+  a time.
+\item
+  After any change, list what a viewer token can see
+  (\code{GET /v1/connections/:id/collections}) and confirm it is only
+  what you intended.
+\end{itemize}
+
+\subsection{Read the content from a website}
+
+Install the SDK in the website, never in browser code that a visitor can
+inspect.
+
+\begin{lstlisting}[language=sh]
+npm install @sethucms/sdk
+\end{lstlisting}
+
+Put three values in the website\textquotesingle s server environment:
+
+\begingroup\footnotesize\begin{longtable}[]{@{}>{\raggedright\arraybackslash}p{(\linewidth-4\tabcolsep)/2}>{\raggedright\arraybackslash}p{(\linewidth-4\tabcolsep)/2}@{}}
+\toprule\noalign{}
+Variable & Value \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\code{SETHUCMS_BASE_URL} & The gateway address (https) \\
+\code{SETHUCMS_TOKEN} & A \textbf{viewer} token made for this site \\
+\code{SETHUCMS_CONNECTION_ID} & The id of the content connection (it
+starts with \code{conn_}) \\
+\end{longtable}\endgroup
+
+\begin{lstlisting}
+import { SethuClient, eq } from '@sethucms/sdk';
+
+const cms = new SethuClient({
+  baseUrl: process.env.SETHUCMS_BASE_URL!,
+  token: () => process.env.SETHUCMS_TOKEN!,
+});
+
+export async function listProjects() {
+  return cms
+    .collection(process.env.SETHUCMS_CONNECTION_ID!, 'projects')
+    .where(eq('published', true))
+    .limit(50)
+    .list();
+}
+\end{lstlisting}
+
+In Next.js, call this from a Server Component or a route handler and
+cache the page (for example \code{revalidate: 60}) so the gateway is
+asked at most once a minute, not once per visitor. The token stays on
+the server.
+
+\subsection{The state store in serverless mode}
+
+Several functions can handle requests at the same moment, so the shared
+state store updates the state document with a revision check: read the
+revision, write the change only if the revision is unchanged, otherwise
+wait a short random time and try again, up to twenty times. If all
+twenty attempts lose, the request fails with a clear error instead of
+overwriting someone else\textquotesingle s change.
+
+The audit log in this mode writes one document per entry. Each entry
+carries an ascending \textbf{newest-first key} (a padded timestamp
+counter subtracted from a large constant), so "latest entries" is an
+ascending scan with a limit. This is done because the Firestore
+emulator, and some Firestore setups, do not support descending key
+scans.
+
+\textbf{Status:} seven live tests pass against the Firestore emulator
+(concurrent updates, revision conflicts, audit order across two
+gateways). The Firestore content adapter itself is still lightly tested;
+run it against a test project before relying on it (doc 18).
+
+\subsection{Operating notes}
+
+\begin{itemize}
+\tightlist
+\item
+  Redeploy after changing code: build the Vercel bundle, then deploy it
+  to production. Environment variables are read at deploy time.
+\item
+  Turn off Vercel Deployment Protection for the gateway project,
+  otherwise browsers and the SDK get a login page instead of JSON.
+\item
+  Rate limits are per function instance, so the real limit is higher
+  than the configured one (doc 22).
+\item
+  Rotate any secret that has been pasted into a chat, a screenshot or a
+  terminal log. Revoke one-day publishing tokens as soon as the release
+  is done.
+\end{itemize}
+
+%--------------------------------------------------------------------
 \section{Roadmap}
 \subsection*{Where we are (October 2026)}
 \begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.4cm}X@{}}
@@ -970,15 +2033,15 @@ Memory to memory; PostgreSQL to PostgreSQL with ids kept, and renumbered with fo
 \textbf{Phase} & \textbf{State}\\
 \midrule
 Foundation & Done: core (29 tests), adapter contract and test kit\\
-Security spine & Mostly done: vault, token auth, audit log, network guard, rate limits, idempotency. Single sign-on not built\\
+Security spine & Done: vault, token auth, audit log, network guard, rate limits, idempotency, single sign-on (tested only against a fake identity provider)\\
 First path & Done: PostgreSQL adapter and gateway, tested against a live database\\
-More adapters & Memory and PostgreSQL only; MongoDB, Firestore, MySQL, SQL Server and DynamoDB not started\\
+More adapters & Done: memory, PostgreSQL, SQLite, MySQL/MariaDB (real servers), MongoDB and Firestore (stand-ins only). Not started: SQL Server, DynamoDB\\
 Admin UI & Done for the first release: connections, content editing with drafts, publish, live preview, access, audit, settings\\
-SDKs & TypeScript, Python and Dart written; Dart and the Go adapter template have not been run\\
+SDKs & TypeScript SDK published as 0.1.0 and used by four example apps and a live website. Python and Dart written but never run\\
 Hardening & Not started: load tests, penetration review, key-rotation drill, cloud-identity connections\\
 \bottomrule
 \end{tabularx}\par\smallskip
-Also done beyond the original plan: CI/CD workflows for every repository, a one-image release build, and agent guides. Next, in order: run the full build on a clean machine and fix what it finds; align \code{sethucms-infra} with the single-image gateway; add MongoDB, MySQL and Firestore adapters; add single sign-on; add a shared state store so more than one gateway can run.
+Also done beyond the original plan: CI/CD workflows for every repository, a one-image release build, agent guides, all ten 0.1.0 packages on npm, and a hosted gateway with the admin app on Vercel with Firestore state (seven live state-store tests pass against the Firestore emulator). Next, in order: run the container image, Compose file and deploy workflows end to end; run the MongoDB and Firestore adapter tests against real servers; native change capture from the databases; custom roles and webhook screens in the admin app; business and vendor dashboards; a \code{create-sethucms} starter and helper libraries for React and Angular.
 
 Estimates assume one or two engineers and are rough planning guesses, not benchmarks.
 

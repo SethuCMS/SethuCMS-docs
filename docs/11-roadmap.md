@@ -11,12 +11,14 @@ Estimates assume one or two engineers and are rough planning guesses, not benchm
 | 3. First path | Done: PostgreSQL adapter and gateway, tested against a live database |
 | 4. More adapters | Done: memory, PostgreSQL, SQLite, MySQL/MariaDB (tested on real servers), MongoDB and Firestore (stand-ins only). Not started: SQL Server, DynamoDB |
 | 5. Admin UI | Done for the first release: connections, content editing with drafts, publish, live preview, access, audit, settings |
-| 6. SDKs | TypeScript SDK packaged as 0.1.0 (npm publish pending) and used by four example apps. Python and Dart written but never run. Python and Go adapter templates not yet aligned with the gRPC protocol |
+| 6. SDKs | TypeScript SDK published to npm as 0.1.0 and used by four example apps and a live website. Python and Dart written but never run. Python and Go adapter templates not yet aligned with the gRPC protocol |
 | 7. Hardening | Not started: load tests, penetration review, key-rotation drill, cloud-identity connections |
 
 Also done outside the original plan: CI/CD workflows for every repository, a one-image release build, and agent guides (`AGENTS.md`).
 
-Next, in this order: publish 0.1.0 and open the repositories; run the container image, Compose file and deploy workflows end to end; run MongoDB and Firestore tests against real servers; native change capture from the databases; custom roles and webhook screens in the admin app; business and vendor dashboards; a `create-sethucms` starter and helper libraries for React and Angular.
+Also done: all ten 0.1.0 packages are on npm, the repositories are public, and a hosted gateway with the admin app runs on Vercel with Firestore state (doc 26; seven live state-store tests pass against the Firestore emulator).
+
+Next, in this order: run the container image, Compose file and deploy workflows end to end; run MongoDB and Firestore tests against real servers; native change capture from the databases; custom roles and webhook screens in the admin app; business and vendor dashboards; a `create-sethucms` starter and helper libraries for React and Angular.
 
 ```mermaid
 gantt

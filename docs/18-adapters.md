@@ -83,7 +83,8 @@ MongoDB has no schema, so the adapter works out collection shapes by **sampling 
 - Firestore cannot do OR with inequality, several inequality fields, or arbitrary text search. The gateway **refuses** such queries (`CAPABILITY_UNSUPPORTED`) instead of approximating them.
 - `contains` and `startsWith` on text are done by reading up to `maxScanDocuments` documents; they are slow and bounded on purpose.
 - Integer ids come from `_sethucms_counters`, as for MongoDB.
-- **Only tested against an in-memory fake that we wrote.** It has never talked to Firestore or the emulator. Treat this adapter as experimental until you have run it against the emulator or a test project.
+- **The content adapter was only tested against an in-memory fake that we wrote.** (The gateway's shared state store, a different piece of code, is also tested against the Firestore emulator; see doc 26.)
+  The adapter has never talked to Firestore or the emulator. Treat this adapter as experimental until you have run it against the emulator or a test project.
 
 ## Running the live tests against your own server
 

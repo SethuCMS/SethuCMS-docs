@@ -18,6 +18,8 @@ const page = await orders.where(eq('status', 'paid')).limit(20).list();
 
 The SDK reference is in its README. The `baseUrl` must be https, except for localhost.
 
+The hosted gateway, the viewer token for a website and the safe way to add a content database are in doc 26.
+
 ## Where the token lives
 
 The token decides what the caller may read and write (see page 7). Treat it like a password.
