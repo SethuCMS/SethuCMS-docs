@@ -34,8 +34,9 @@
 | 24 | [Changes and webhooks](docs/24-changes-and-webhooks.md) | The change feed and outgoing webhooks |
 | 25 | [Use it from your app](docs/25-use-from-your-app.md) | Install the SDK, call it from Next.js, React, Angular or plain JavaScript |
 | 26 | [Hosted gateway and first content connection](docs/26-hosted-gateway.md) | The live setup on Vercel, the admin app, adding your content database safely, reading it from a website |
+| 27 | [Upcoming features and plans](docs/27-upcoming-and-plans.md) | Planned, not built: agentic schema writer, dashboards, ads, and the Free, Pro and Ultra plans |
 
-A printable version is in [`latex/`](latex) (`sethucms-design-docs.pdf`). Instructions for coding agents are in each repository's `AGENTS.md`. Decision records live in [`docs/adr/`](docs/adr). Machine-readable schemas live in [`schemas/`](schemas).
+A printable version is in [`latex/`](latex) (`sethucms-design-docs.pdf`). The slide deck (PowerPoint and PDF) is in [`presentations/`](presentations). Instructions for coding agents are in each repository's `AGENTS.md`. Decision records live in [`docs/adr/`](docs/adr). Machine-readable schemas live in [`schemas/`](schemas).
 
 ## Conventions
 

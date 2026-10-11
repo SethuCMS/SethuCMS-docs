@@ -85,6 +85,7 @@ The earlier rough estimate was 200-250; this table sums slightly higher once eve
 - gRPC endpoint
 - Third-party adapters in Go, Python and other languages
 - Pricing and billing (per connection is the main cost driver)
+- Agentic schema writer, dashboards, and Free, Pro and Ultra hosted plans (doc 27)
 
 ## Risks
 
