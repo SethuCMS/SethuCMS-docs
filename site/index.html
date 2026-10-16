@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SethuCMS</title>
+<meta name="description" content="SethuCMS is an open-source, security-first content management system that works with the database you already have.">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<style>
+:root{--paper:#f5f3ee;--ink:#17231e;--soft:#59655f;--line:#e4e0d6;--lime:#d8f06f;--coral:#ef704f;--coral-ink:#b84a2c;--sky:#b5c6f5;--blush:#f6b6a4;--white:#fff;
+--font:"Schibsted Grotesk","Segoe UI",system-ui,-apple-system,sans-serif;--mono:ui-monospace,"JetBrains Mono",Menlo,monospace}
+@media (prefers-color-scheme:dark){:root{--paper:#101814;--ink:#eef1ea;--soft:#a3b0a8;--line:#26352d;--white:#17231e;--coral-ink:#ff9a7e}}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font);line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:inherit}h1,h2,h3,p{margin:0}
+:focus-visible{outline:2px solid var(--coral);outline-offset:3px;border-radius:6px}
+.wrap{max-width:1240px;margin:0 auto;padding:0 clamp(18px,4vw,48px)}
+.skip{position:absolute;left:12px;top:-60px;background:var(--ink);color:var(--paper);padding:8px 14px;border-radius:99px}.skip:focus{top:12px}
+/* header */
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:22px 0}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:700;font-size:1.15rem;letter-spacing:-.04em}
+.brand img{width:36px;height:36px;border-radius:10px}
+nav.links{display:flex;gap:28px}nav.links a{text-decoration:none;font-size:.95rem;font-weight:500;color:var(--soft)}nav.links a:hover{color:var(--ink)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 22px;border-radius:99px;font-weight:700;font-size:.95rem;text-decoration:none;border:1px solid transparent;transition:transform .15s}
+.btn:hover{transform:translateY(-2px)}
+.btn-dark{background:var(--ink);color:var(--paper)}
+.btn-coral{background:var(--coral);color:#fff;box-shadow:0 8px 20px rgba(239,112,79,.22)}
+.btn-line{border-color:var(--line);background:var(--white);color:var(--ink)}
+.head-actions{display:flex;gap:10px;align-items:center}
+/* hero */
+.hero{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);gap:40px;align-items:center;padding:36px 0 84px}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border:1px solid var(--line);background:var(--white);border-radius:99px;font-size:.8rem;font-weight:600;margin-bottom:26px}
+.pill i{width:8px;height:8px;border-radius:50%;background:var(--coral)}
+h1{font-size:clamp(2.8rem,6.6vw,6.2rem);line-height:.96;letter-spacing:-.07em;font-weight:700}
+h1 em{font-style:normal;color:var(--coral)}
+.lede{margin-top:26px;max-width:34rem;font-size:1.2rem;color:var(--soft);line-height:1.6}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px}
+.facts{margin-top:30px;display:flex;flex-wrap:wrap;gap:8px 22px;font-size:.85rem;color:var(--soft)}
+.facts b{color:var(--ink)}
+/* illustration */
+.stage{position:relative;min-height:520px}
+.disc{position:absolute;right:0;top:20px;width:min(520px,92%);aspect-ratio:1;border-radius:50%;background:var(--lime)}
+.window{position:absolute;left:0;right:6%;top:40px;background:var(--white);border:1px solid var(--line);border-radius:26px;padding:10px;box-shadow:0 28px 80px rgba(23,35,30,.16);transform:rotate(-2.5deg)}
+.win-in{border-radius:18px;overflow:hidden;background:var(--paper);display:grid;grid-template-columns:150px 1fr;min-height:330px}
+.win-side{background:#17231e;color:#c9d3cd;padding:16px 12px;display:grid;gap:6px;align-content:start;font-size:.72rem}
+.win-side .logo{display:flex;align-items:center;gap:8px;color:#fff;font-weight:700;font-size:.85rem;margin-bottom:10px}
+.win-side .logo img{width:22px;height:22px;border-radius:6px}
+.win-side span{padding:8px 10px;border-radius:10px}.win-side .on{background:var(--lime);color:#17231e;font-weight:700}
+.win-main{padding:18px;display:grid;gap:12px;align-content:start}
+.win-main h3{font-size:1.05rem;letter-spacing:-.03em}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--line);background:var(--white);border-radius:12px;font-size:.74rem}
+.row b{font-size:.78rem}.ok{display:inline-flex;align-items:center;gap:6px;color:#2f7a4b;font-weight:700}.ok::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.tag{padding:3px 9px;border-radius:99px;background:var(--lime);color:#17231e;font-weight:700;font-size:.66rem}
+.tag.sky{background:var(--sky)}.tag.blush{background:var(--blush)}
+.float{position:absolute;right:0;bottom:30px;background:var(--white);border:1px solid var(--line);border-radius:18px;padding:14px 16px;box-shadow:0 18px 50px rgba(23,35,30,.16);display:flex;gap:12px;align-items:center;font-size:.8rem}
+.float i{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--lime);color:#17231e;font-style:normal;font-weight:700}
+.float small{display:block;color:var(--soft);font-size:.7rem}
+.caption{position:absolute;left:0;bottom:0;font-size:.72rem;color:var(--soft)}
+/* band */
+.band{background:#17231e;color:#f5f3ee;padding:56px 0}
+.band .wrap{display:grid;grid-template-columns:1fr 1.4fr;gap:32px;align-items:center}
+.band h2{font-size:clamp(2rem,4vw,3rem);letter-spacing:-.06em;line-height:1}
+.band h2 span{color:var(--lime)}
+.band p{color:rgba(255,255,255,.62);max-width:42rem}
+/* sections */
+section.block{padding:92px 0}
+.kicker{font-size:.85rem;font-weight:700;color:var(--coral-ink);margin-bottom:12px}
+h2.title{font-size:clamp(2.2rem,4.4vw,3.8rem);letter-spacing:-.06em;line-height:1;max-width:18ch}
+.sub{margin-top:16px;max-width:40rem;color:var(--soft);font-size:1.08rem}
+.steps{list-style:none;margin:44px 0 0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;counter-reset:s}
+.steps li{counter-increment:s;background:var(--white);border:1px solid var(--line);border-radius:26px;padding:26px;display:grid;gap:12px;align-content:start}
+.steps li::before{content:counter(s);display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:var(--lime);color:#17231e;font-weight:700}
+.steps h3{font-size:1.3rem;letter-spacing:-.04em}.steps p{color:var(--soft);font-size:.97rem}
+code,pre{font-family:var(--mono)}
+pre{margin:44px 0 0;padding:22px 24px;border-radius:22px;background:#17231e;color:#e6efe9;font-size:.88rem;overflow:auto;line-height:1.7}
+pre b{color:var(--lime);font-weight:400}
+.grid{margin-top:44px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.card{padding:26px;border-radius:26px;border:1px solid var(--line);background:var(--white);display:grid;gap:10px;align-content:start}
+.card.lime{background:var(--lime);border-color:var(--lime);color:#17231e}.card.lime p{color:rgba(23,35,30,.7)}
+.card h3{font-size:1.25rem;letter-spacing:-.04em}.card p{color:var(--soft);font-size:.96rem}
+table{width:100%;border-collapse:collapse;margin-top:40px;background:var(--white);border:1px solid var(--line);border-radius:22px;overflow:hidden;font-size:.95rem}
+th,td{padding:15px 20px;text-align:left;border-bottom:1px solid var(--line)}tr:last-child td{border:0}
+th{font-size:.78rem;color:var(--soft);font-weight:600}
+.st{display:inline-block;padding:3px 11px;border-radius:99px;font-size:.75rem;font-weight:700;background:var(--lime);color:#17231e}
+.st.mid{background:var(--sky)}.st.no{background:var(--blush)}
+.tablewrap{overflow-x:auto}
+.final{margin:0 0 90px;padding:clamp(32px,6vw,72px);border-radius:36px;background:var(--lime);color:#17231e;display:grid;gap:22px;justify-items:start}
+.final h2{font-size:clamp(2.2rem,5vw,4rem);letter-spacing:-.06em;line-height:1;max-width:16ch}
+.final p{max-width:36rem;color:rgba(23,35,30,.72)}
+footer{border-top:1px solid var(--line);padding:30px 0 44px;display:flex;flex-wrap:wrap;gap:12px 28px;justify-content:space-between;font-size:.88rem;color:var(--soft)}
+footer nav{display:flex;gap:22px;flex-wrap:wrap}
+@media (max-width:980px){.hero{grid-template-columns:1fr}.stage{min-height:480px}.band .wrap{grid-template-columns:1fr}.steps,.grid{grid-template-columns:1fr}nav.links{display:none}}
+@media (max-width:560px){.win-in{grid-template-columns:1fr}.win-side{display:none}.window{right:0}.head-actions .btn-line{display:none}}
+@media (prefers-reduced-motion:no-preference){.window{animation:rise .7s ease-out both}@keyframes rise{from{opacity:0;transform:translateY(20px) rotate(-2.5deg)}}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="wrap">
+<header>
+  <a class="brand" href="#top" aria-label="SethuCMS home"><img src="logo.svg" alt="">sethucms</a>
+  <nav class="links" aria-label="Main"><a href="#how">How it works</a><a href="#security">Security</a><a href="#status">Status</a><a href="https://github.com/SethuCMS/sethucms-docs">Docs</a></nav>
+  <div class="head-actions"><a class="btn btn-line" href="https://github.com/SethuCMS">GitHub</a><a class="btn btn-dark" href="https://sethucms-admin.vercel.app">Open the admin</a></div>
+</header>
+
+<main id="main">
+<section class="hero" id="top">
+  <div>
+    <div class="pill"><i></i>Open source · MIT licence · Version 0.1.0</div>
+    <h1>Use the <em>database</em> you already have.</h1>
+    <p class="lede">SethuCMS is a content management system that sits in front of your own PostgreSQL, MySQL, MongoDB or Firestore. You run it next to your database, so your data stays where it is.</p>
+    <div class="cta">
+      <a class="btn btn-coral" href="https://github.com/SethuCMS/sethucms-docs">Read how to run it</a>
+      <a class="btn btn-line" href="https://sethucms-admin.vercel.app">Open the admin</a>
+    </div>
+    <div class="facts"><span><b>Your data</b> never passes through us</span><span><b>One person</b>, one login, one authenticator</span></div>
+  </div>
+
+  <div class="stage" aria-label="Illustration of the admin panel">
+    <div class="disc"></div>
+    <div class="window">
+      <div class="win-in">
+        <div class="win-side"><div class="logo"><img src="logo.svg" alt="">sethucms</div><span class="on">Home</span><span>Content</span><span>Connections</span><span>Roles and access</span><span>Audit log</span></div>
+        <div class="win-main">
+          <h3>Your connections</h3>
+          <div class="row"><b>Orders database</b><span class="ok">Healthy</span></div>
+          <div class="row"><b>Blog</b><span class="tag sky">Read-only</span></div>
+          <div class="row"><b>Drafts waiting</b><span class="tag blush">Review</span></div>
+          <div class="row"><b>Sign-in</b><span class="tag">Authenticator</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="float"><i>✓</i><div><b>Published</b><small>Approved by an editor</small></div></div>
+    <div class="caption">Illustration, not real data.</div>
+  </div>
+</section>
+</main>
+</div>
+
+<div class="band"><div class="wrap">
+  <h2>Your content.<br><span>Your database.</span></h2>
+  <p>Connect a database, choose which tables become content, and give your team a clean place to edit, review and publish. Your website or app reads the result through one steady API, whichever database sits underneath.</p>
+</div></div>
+
+<div class="wrap">
+<section class="block" id="how">
+  <div class="kicker">How it works</div>
+  <h2 class="title">Three steps, on your own machine.</h2>
+  <p class="sub">There is nothing to sign up for. The gateway is a program you run. The admin panel is a web page that talks to it.</p>
+  <ol class="steps">
+    <li><h3>Run the gateway</h3><p>Start it next to your database, on your computer or a server. The first start prints a one-time admin token.</p></li>
+    <li><h3>Connect your database</h3><p>Open the admin, add a connection, and start read-only. Choose which tables to expose as content.</p></li>
+    <li><h3>Add your team</h3><p>Create a person for each teammate with a role, and have them scan an authenticator code. Then revoke the first token.</p></li>
+  </ol>
+  <pre aria-label="Commands to start the gateway"><b>cd</b> sethucms
+<b>sh</b> scripts/build-all.sh
+<b>sh</b> scripts/run-local.sh   <span style="opacity:.55"># http://127.0.0.1:8080</span></pre>
+</section>
+
+<section class="block" id="security" style="padding-top:0">
+  <div class="kicker">Security first</div>
+  <h2 class="title">Built so the safe way is the default.</h2>
+  <div class="grid">
+    <div class="card lime"><h3>One login per person</h3><p>Sign in with a username and a six-digit authenticator code. No shared password.</p></div>
+    <div class="card"><h3>Roles that mean something</h3><p>Admins manage connections and people. Editors work on content. Viewers read published content only.</p></div>
+    <div class="card"><h3>Read-only first</h3><p>A new connection starts read-only. New tables stay out of the API until someone reviews them.</p></div>
+    <div class="card"><h3>A record of every change</h3><p>An audit log shows who changed what and when, and it is built so tampering shows.</p></div>
+    <div class="card"><h3>Hashed tokens</h3><p>API tokens are stored only as hashes and are shown once. Replace one and the old one keeps working for an hour.</p></div>
+    <div class="card"><h3>You hold the keys</h3><p>The gateway runs on your side. Your database passwords stay encrypted on your own server.</p></div>
+  </div>
+</section>
+
+<section class="block" id="status" style="padding-top:0">
+  <div class="kicker">Where it stands</div>
+  <h2 class="title">Early, and honest about it.</h2>
+  <p class="sub">SethuCMS is version 0.1.0. This is what has been tested, and what has not.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Database</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>PostgreSQL</td><td><span class="st">Tested on the real database</span></td></tr>
+      <tr><td>SQLite</td><td><span class="st">Tested on the real database</span></td></tr>
+      <tr><td>MySQL and MariaDB</td><td><span class="st mid">Tested on compatible servers</span></td></tr>
+      <tr><td>MongoDB</td><td><span class="st mid">Tested on a compatible server</span></td></tr>
+      <tr><td>Firestore</td><td><span class="st mid">Experimental</span></td></tr>
+      <tr><td>SQL Server</td><td><span class="st no">Not supported yet</span></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<div class="final">
+  <h2>Try it on a copy of your data.</h2>
+  <p>It is free software under the MIT licence, with no warranty. Start read-only, and tell us what breaks.</p>
+  <div class="cta" style="margin:0"><a class="btn btn-dark" href="https://github.com/SethuCMS">See the code</a><a class="btn btn-line" href="https://www.npmjs.com/org/sethucms">npm packages</a></div>
+</div>
+
+<footer>
+  <span>© SethuCMS. MIT licensed.</span>
+  <nav aria-label="Footer"><a href="https://github.com/SethuCMS">GitHub</a><a href="https://github.com/SethuCMS/sethucms-docs">Docs</a><a href="https://www.npmjs.com/org/sethucms">npm</a><a href="https://sethucms-admin.vercel.app">Admin</a></nav>
+</footer>
+</div>
+</body>
+</html>

@@ -83,6 +83,9 @@ MongoDB has no schema, so the adapter works out collection shapes by **sampling 
 - Firestore cannot do OR with inequality, several inequality fields, or arbitrary text search. The gateway **refuses** such queries (`CAPABILITY_UNSUPPORTED`) instead of approximating them.
 - `contains` and `startsWith` on text are done by reading up to `maxScanDocuments` documents; they are slow and bounded on purpose.
 - Integer ids come from `_sethucms_counters`, as for MongoDB.
+- **A new, empty collection.** Firestore has a collection only once it holds a document, so a scan of an empty database finds nothing. An administrator can declare one: on the connection page, fill in **New collection** and **Fields**, or call `POST /v1/admin/connections/{id}/collections` with `{ "name": "projects", "fields": [{ "name": "title", "type": "string", "required": true }] }`. Only the definition is saved (in `_sethucms_schemas`); the database makes the collection with its first record. The connection must be read and write, and the collection is switched on unless you send `"expose": false`.
+  The saved fields are the ones records may use, and they cannot be edited yet. Choose them with the data in mind. A collection made by hand in the Firebase console is different: its fields are guessed from the documents already in it.
+  This is offered only for Firestore. It is not offered for SQL databases, where creating tables stays a migration step (doc 17).
 - **The content adapter was only tested against an in-memory fake that we wrote.** (The gateway's shared state store, a different piece of code, is also tested against the Firestore emulator; see doc 26.)
   The adapter has never talked to Firestore or the emulator. Treat this adapter as experimental until you have run it against the emulator or a test project.
 
