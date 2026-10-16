@@ -83,6 +83,12 @@ Only the listed providers are accepted, so anonymous and password accounts that 
 
 The admin app loads the Firebase SDK only when someone clicks a button. If the admin app is served with a strict Content-Security-Policy, it must allow `https://apis.google.com` for scripts and `https://*.firebaseapp.com` and `https://accounts.google.com` for frames; the `vercel.json` in the admin repo does.
 
+## Firebase sign-in and workspaces
+
+With `SETHUCMS_WORKSPACES=open` (doc 30), a person who is not in the lists above still signs in: they get an isolated workspace of their own and are its admin. Only people named in `SETHUCMS_FIREBASE_ADMINS`, `_EDITORS` and `_VIEWERS` use the main workspace. A workspace needs a verified e-mail address. Teammates are added by invitation from inside the workspace.
+
+If the admin app sits inside another website (for example at `/sethu`), that website's Content-Security-Policy must allow the Firebase sign-in popup, or Google sign-in fails with `auth/internal-error` (doc 32).
+
 ## Tested and not tested
 
 All three are tested against fake Google, GitHub and Firebase servers that run inside the test suite. That proves SethuCMS's side (token checks, role lists, failures). It does not prove behaviour against the real services. Try each with your own accounts before relying on it.

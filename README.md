@@ -2,7 +2,7 @@
 
 **One CMS for every database.** SethuCMS connects to SQL, document, key-value and realtime databases (including cloud-hosted ones such as Firebase, Supabase, Neon, MongoDB Atlas, AWS, Google Cloud and Azure) and gives every client stack (Next.js, Flutter, Python, mobile) one REST/GraphQL API and one admin UI.
 
-> Status (0.1.0, released to npm in October 2026): the core, six adapters (memory, PostgreSQL, SQLite, MySQL/MariaDB, MongoDB, Firestore), the gateway, the admin app, drafts, publish, live preview, single sign-on, change feed and webhooks are built. PostgreSQL, MySQL, MariaDB and SQLite are tested against real servers. MongoDB and Firestore are only tested against stand-ins. A hosted gateway with the admin app runs on Vercel with its state in Firestore (doc 26). The container image, the other deploy workflows and a real identity provider have not been run end to end. Pages 1 to 11 describe the full design (parts of it are still future work); pages 12 to 26 describe what is built and how to run, deploy and use it. See the [roadmap](docs/11-roadmap.md) for what is done and what is next.
+> Status (0.1.0, released to npm in October 2026): the core, six adapters (memory, PostgreSQL, SQLite, MySQL/MariaDB, MongoDB, Firestore), the gateway, the admin app, drafts, publish, live preview, single sign-on (Google, GitHub and Firebase), per-person workspaces, schema as code, image and PDF storage, change feed and webhooks are built. PostgreSQL, MySQL, MariaDB and SQLite are tested against real servers. MongoDB and Firestore are only tested against stand-ins. A hosted gateway with the admin app runs on Vercel with its state in Firestore (doc 26). The container image, the other deploy workflows and a real identity provider have not been run end to end. Pages 1 to 11 describe the full design (parts of it are still future work); pages 12 to 33 describe what is built and how to run, deploy and use it. See the [roadmap](docs/11-roadmap.md) for what is done and what is next.
 
 ## Reading order
 
@@ -35,6 +35,12 @@
 | 25 | [Use it from your app](docs/25-use-from-your-app.md) | Install the SDK, call it from Next.js, React, Angular or plain JavaScript |
 | 26 | [Hosted gateway and first content connection](docs/26-hosted-gateway.md) | The live setup on Vercel, the admin app, adding your content database safely, reading it from a website |
 | 27 | [Upcoming features and plans](docs/27-upcoming-and-plans.md) | Planned, not built: agentic schema writer, dashboards, ads, and the Free, Pro and Ultra plans |
+| 28 | [Run it yourself](docs/28-run-it-yourself.md) | Run the gateway and admin app on your own machine |
+| 29 | [Schema as code](docs/29-schema-as-code.md) | A schema file that names fields, picks editors, hides and limits them, without touching your database |
+| 30 | [Workspaces](docs/30-workspaces.md) | Every person who signs in gets an isolated workspace of their own |
+| 31 | [Images and files](docs/31-files-and-images.md) | Upload, safety rules and limits for images and PDFs stored in Firestore |
+| 32 | [The admin app](docs/32-admin-app.md) | Hosted and content-only builds, the content page, field picker, edit as code |
+| 33 | [How the code is laid out](docs/33-code-layout.md) | The 700-line rule and where each part lives |
 
 A printable version is in [`latex/`](latex) (`sethucms-design-docs.pdf`). The slide deck (PowerPoint and PDF) is in [`presentations/`](presentations). Instructions for coding agents are in each repository's `AGENTS.md`. Decision records live in [`docs/adr/`](docs/adr). Machine-readable schemas live in [`schemas/`](schemas).
 

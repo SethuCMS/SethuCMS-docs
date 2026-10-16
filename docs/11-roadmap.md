@@ -18,7 +18,9 @@ Also done outside the original plan: CI/CD workflows for every repository, a one
 
 Also done: all ten 0.1.0 packages are on npm, the repositories are public, and a hosted gateway with the admin app runs on Vercel with Firestore state (doc 26; seven live state-store tests pass against the Firestore emulator).
 
-Next, in this order: run the container image, Compose file and deploy workflows end to end; run MongoDB and Firestore tests against real servers; native change capture from the databases; custom roles and webhook screens in the admin app; business and vendor dashboards; a `create-sethucms` starter and helper libraries for React and Angular.
+Also done (October 2026): sign-in with Google and GitHub through Firebase, per-person workspaces (doc 30), schema as code (doc 29), images and PDFs stored in Firestore with cleaning and limits (doc 31), a content page with a collections sidebar, search in the top bar, a field picker and edit as code (doc 32), and every source file split to 700 lines or fewer (doc 33). The workspaces, schema and file features are tested only against fakes.
+
+Next, in this order: run workspaces, file storage and Firebase sign-in on a real Vercel, Firestore and Firebase setup; per-workspace quotas; run the container image, Compose file and deploy workflows end to end; run MongoDB and Firestore tests against real servers; native change capture from the databases; custom roles and webhook screens in the admin app; business and vendor dashboards; a `create-sethucms` starter and helper libraries for React and Angular.
 
 ```mermaid
 gantt

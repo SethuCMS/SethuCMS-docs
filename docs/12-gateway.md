@@ -32,6 +32,12 @@ flowchart LR
 6. Audit and announce the change
 7. Any failure becomes the standard error body (database text never leaves the server)
 
+## Workspaces, schema and files
+
+- With `SETHUCMS_WORKSPACES=open`, requests under `/w/<id>/...` go to that person's own gateway (doc 30). Everything else is handled as described here.
+- `SETHUCMS_SCHEMA_FILE` or `SETHUCMS_SCHEMA` lays a schema over what each database reports: labels, editors, hidden and read-only fields, limits (doc 29). `GET /v1/schema` (admin) shows it.
+- Connections whose adapter can store files accept images and PDFs at `/v1/connections/{id}/files` (doc 31).
+
 ## Many databases at once
 
 A connection is a saved row (name, adapter type, mode, settings, encrypted credentials, exposed collections). The registry opens
@@ -88,4 +94,4 @@ gateways, set `SETHUCMS_STATE_URL` to a PostgreSQL address (doc 22). Rate limits
 
 ## What is not built yet
 
-Custom roles in the gateway (three fixed roles: admin, editor, viewer), native database change capture (the change feed only sees changes made through the gateway), a webhook screen in the admin app, SSE `Last-Event-ID` replay, and shared rate limits. Single sign-on (doc 21), shared state and the worker (doc 22), gRPC adapters (doc 23) and the change feed and webhooks (doc 24) exist but are tested only as those docs say: no real identity provider, no cloud deploy run. Never claim more.
+Custom roles in the gateway (three fixed roles: admin, editor, viewer), native database change capture (the change feed only sees changes made through the gateway), a webhook screen in the admin app, SSE `Last-Event-ID` replay, and shared rate limits. Single sign-on (doc 21), shared state and the worker (doc 22), gRPC adapters (doc 23) and the change feed and webhooks (doc 24) exist but are tested only as those docs say: no real identity provider, no cloud deploy run. Workspaces (doc 30), schema as code (doc 29) and file storage (doc 31) are tested only against fake Firebase and Firestore. Never claim more.

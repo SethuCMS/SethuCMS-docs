@@ -32,6 +32,13 @@ flowchart LR
 | DELETE | `/v1/connections/{id}/collections/{name}/records/{rid}` | Delete |
 | POST | `/v1/connections/{id}/batch` | Batch writes |
 | GET | `/v1/audit` | Query the audit log |
+| POST | `/v1/workspaces/signin` | Trade a Firebase ID token for a session in the person's own workspace (doc 30) |
+| GET | `/v1/schema` | The loaded schema file and where it differs from each connection; admin only (doc 29) |
+| POST | `/v1/connections/{id}/files` | Upload an image or PDF (doc 31) |
+| GET, HEAD | `/v1/files/{id}/{fileId}` | Download a file; private files need a token |
+| DELETE | `/v1/connections/{id}/files/{fileId}` | Remove a file; admin only |
+
+Workspace requests use the prefix `/w/{workspaceId}`, for example `/w/{workspaceId}/v1/connections`.
 | GET | `/v1/health` | Liveness and readiness |
 
 Write endpoints return `READ_ONLY` on read-only connections.

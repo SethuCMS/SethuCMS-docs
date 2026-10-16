@@ -21,6 +21,8 @@ Keep two Firebase projects: one for the gateway's own state and one for your con
 
 Treat the admin token like a root password: never paste it into a chat, a ticket or a screenshot, and clear your terminal after printing it.
 
+**Workspaces.** If the gateway runs with `SETHUCMS_WORKSPACES=open` (doc 30), other people can sign in with Google or GitHub and get a workspace of their own, with their own connections and tokens. The admin token above opens only the main workspace.
+
 ## Add your content database
 
 In the admin app go to Connections, then Add, then choose Firestore. You need:
