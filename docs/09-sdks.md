@@ -38,6 +38,20 @@ Each first-party SDK adds the same small set of behaviours:
 | `realtime` | Optional subscription helper |
 | `errors` | Typed error classes from the API error codes |
 
+## TypeScript additions in 0.2.0
+
+```ts
+const { count, exact } = await orders.where(eq('status', 'paid')).count();   // exact: false means "at least"
+const all = await cms.counts('conn_123');                                       // every collection you can read
+
+const draft = await orders.drafts.create({ recordId: 7, values: { status: 'paid' } });
+await orders.drafts.schedule(draft.id, new Date('2026-12-01T09:00:00+05:30'));
+await orders.drafts.cancelSchedule(draft.id);
+await orders.drafts.publish(draft.id, { version: draft.version });
+```
+
+A scheduled draft publishes its latest saved values with the scheduler's permissions. On a serverless gateway, `schedule` fails with `CAPABILITY_UNSUPPORTED`. `0.2.0` is on npm. It only adds methods, so code written for `0.1.0` keeps working.
+
 ## Dart example (shape only)
 
 ```dart

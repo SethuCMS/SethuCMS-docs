@@ -37,9 +37,14 @@ flowchart LR
 | POST | `/v1/connections/{id}/files` | Upload an image or PDF (doc 31) |
 | GET, HEAD | `/v1/files/{id}/{fileId}` | Download a file; private files need a token |
 | DELETE | `/v1/connections/{id}/files/{fileId}` | Remove a file; admin only |
+| GET | `/v1/connections/{id}/counts` | How many records each collection holds, in one call (see "Counting records") |
+| GET | `/v1/connections/{id}/collections/{name}/count` | How many records match a filter |
+| PUT, DELETE | `/v1/connections/{id}/collections/{name}/drafts/{draftId}/schedule` | Publish a draft by itself later, or cancel that (doc 13) |
+| GET, POST | `/v1/admin/origins` | List the browser sites allowed to call the gateway, and allow one; admin only (doc 12) |
+| DELETE | `/v1/admin/origins/{id}` | Stop allowing a browser site; admin only |
+| GET | `/v1/health` | Liveness and readiness |
 
 Workspace requests use the prefix `/w/{workspaceId}`, for example `/w/{workspaceId}/v1/connections`.
-| GET | `/v1/health` | Liveness and readiness |
 
 Write endpoints return `READ_ONLY` on read-only connections.
 
@@ -65,6 +70,18 @@ Response:
 ```
 
 `capabilityNotes` lists emulated or degraded behaviour (for example "sort emulated at gateway").
+
+## Counting records
+
+```
+GET /v1/connections/c1/collections/orders/count?filter={"and":[{"field":"status","op":"eq","value":"paid"}]}&max=1000
+```
+
+```json
+{ "data": { "count": 1000, "exact": false } }
+```
+
+The gateway counts by paging through the keys with the caller's own permissions, so a count never includes a record that a list would hide, and no adapter has to change. Counting stops at `max` (default 1000, at most 10000). `exact: false` means "at least this many". The same answer is kept for 30 seconds and forgotten when a record is created or deleted through the gateway. `GET /v1/connections/{id}/counts` returns `{ "data": { "<collection>": { "count", "exact" } } }` for every collection the caller can read; a collection whose count fails shows `null` and does not stop the others.
 
 ## Pagination
 

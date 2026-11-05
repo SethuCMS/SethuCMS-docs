@@ -27,6 +27,21 @@ If the website sets a Content-Security-Policy, `/sethu` needs its own, looser on
 - **Right:** the list of records, newest first or oldest first, and the editor.
 - On a phone the sidebar becomes a drawer.
 
+## Counts, singletons and scheduling
+
+- **Counts.** Each collection in the sidebar shows how many records you can see. A `+` after the number (`1,000+`) means "at least". The numbers refresh a moment after you create or delete a record and are read aloud by screen readers as "1,000 or more records".
+- **Singleton collections** (doc 29) open straight into their one record, with no search box, list, **New** or **Delete**.
+- **Scheduling.** Under the form, **Schedule** opens a date and time picker (in your own time zone, suggested one hour ahead). A scheduled draft shows **Scheduled for ...** with **Change time** and **Cancel schedule**, and a **Scheduled** chip in the list. If a scheduled publish fails, the editor shows the reason with **Schedule again** and **Dismiss**. It is only shown after the record is opened again. The gateway runs the schedule, so you can close the page. The box is shown on serverless gateways too, where trying it gives a clear error.
+
+## CORS origins page
+
+Admins add and remove the browser sites allowed to call the gateway under **CORS origins**, and see the sites that were just refused with an **Allow this site** button (doc 12). The first time a person connects from a site that is not allowed, the connect screen explains the cause and what to add.
+
+## Branding and accessibility
+
+- Colours and type come from CSS variables in `tokens-base.css`. To rebrand without rebuilding, edit `public/theme.css`: it is loaded after the app's own styles, so write overrides as `:root:root { --accent: ...; }`.
+- The status badges (Published, Unpublished changes, Scheduled) meet WCAG 2.2 AA contrast in light and dark themes, checked with axe-core on the content page, the editor, a singleton and the schedule box. A screen-reader pass and real phones have not been tested; only a desktop browser at 390 and 320 pixels wide.
+
 ## Choosing which fields you see
 
 Above the form, **Fields** lists every field of the collection with a checkbox. The choice is per collection and stays in your browser. Keys and required fields always show. Hidden fields keep their values and are saved unchanged. Until you choose, fields named `sanity_*` are hidden, and so is anything the schema file hides (doc 29).
@@ -40,3 +55,9 @@ Above the form, **Fields** lists every field of the collection with a checkbox. 
 ## Settings, Schema
 
 Admins see the schema file as the gateway loaded it, and where it disagrees with each connection.
+
+## Projects
+
+When workspaces are on, the sidebar shows a project menu (switch, New project)
+and Settings lists your projects with rename and delete for the ones you own.
+See [Workspaces](30-workspaces.md#projects-more-than-one-workspace-per-person).

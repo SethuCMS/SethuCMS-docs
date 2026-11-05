@@ -17,6 +17,7 @@ This is why a half-finished edit can never appear on a live website, and why two
 | Keep typing | Saves about 0.7 seconds after the last key | Replaces the draft, version + 1 |
 | Open preview | Preview pane updates as you type | Streams the draft merged over the published record |
 | Publish | "Published" | Validates, checks for conflicts, writes to the database, deletes the draft |
+| Schedule | Pick a date and time under the form, press **Schedule** | Stores the time (in UTC) on the draft; the editor stays open |
 | Discard | Draft disappears | Marks the draft discarded; the database is untouched |
 | Someone else changed the record | Conflict panel with two choices | Refuses with `409 record_changed` |
 
@@ -33,6 +34,27 @@ stateDiagram-v2
   published --> [*]
   discarded --> [*]
 ```
+
+## Scheduled publishing
+
+An editor can choose a time instead of pressing **Publish**. The draft then shows **Scheduled for ...** with **Change time** and **Cancel schedule**.
+
+```mermaid
+stateDiagram-v2
+  [*] --> draft
+  draft --> scheduled: schedule (time with zone, in the future)
+  scheduled --> draft: cancel schedule
+  scheduled --> published: time comes, publish succeeds
+  scheduled --> draft: time comes, publish fails (reason kept as scheduleError)
+```
+
+- The time must include its zone (`Z` or `+05:30`), be in the future and at most 366 days ahead. It is stored in UTC.
+- At the time, the **latest saved values** are published with the permissions of the person who scheduled it. Editing the draft afterwards keeps the schedule.
+- The gateway looks for due drafts every 15 seconds and once at start. A draft that came due while the gateway was off publishes when it starts again.
+- If publishing fails (the live record changed, the values no longer validate, the person lost access) nothing is published, the schedule is cleared and the reason is kept on the draft. It never retries by itself. A failure shows in the editor when the record is opened again.
+- The audit log records `draft.schedule`, `draft.unschedule` and `draft.schedule.fail`. A success is the normal `draft.publish`.
+- With `SETHUCMS_SERVERLESS=1` the call is refused (`422 CAPABILITY_UNSUPPORTED`), because nothing would be running at that time.
+- With several gateways sharing PostgreSQL state, each one looks for due drafts and the publish step is claimed first, so only one publishes. One live test with two gateway instances in the same process on PostgreSQL 16 passed; it has not been run across separate gateway machines.
 
 ## Publish, step by step
 
@@ -108,6 +130,8 @@ sequenceDiagram
 | `PATCH .../drafts/:id` | Save a draft (send `version`) |
 | `DELETE .../drafts/:id` | Discard |
 | `POST .../drafts/:id/publish` | Publish (`{ "version": n, "force": false }`) |
+| `PUT .../drafts/:id/schedule` | Schedule the publish (`{ "publishAt": "2026-12-01T09:00:00+05:30" }`) |
+| `DELETE .../drafts/:id/schedule` | Cancel the schedule |
 | `POST .../drafts/:id/preview-link` | Create a preview link |
 | `GET /v1/preview/:token` and `/events` | Read the preview, then stream updates |
 
@@ -115,4 +139,4 @@ sequenceDiagram
 
 The gateway tests cover create, autosave, stale version, publish, double publish, conflict, force publish, discard, permissions,
 read-only connections, preview tokens and the preview stream. The live PostgreSQL test also changes a row directly in the database
-between draft and publish and checks that the conflict is caught.
+between draft and publish and checks that the conflict is caught. Eight gateway tests cover scheduling: a good time, a time without a zone, a past time, a time too far ahead, cancelling, a scheduled draft that publishes, a failed publish that clears the schedule and keeps the reason, and the refusal in serverless mode.

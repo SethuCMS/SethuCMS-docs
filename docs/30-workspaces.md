@@ -44,3 +44,29 @@ The gateway refuses to start when workspaces are on without Firebase sign-in, wi
 - Quotas per workspace (connections, storage, requests).
 - More than one organization per person.
 - Billing and plans (doc 27).
+
+## Projects: more than one workspace per person
+
+A person can own several workspaces, called projects, and be a member of
+others. Each project is a full workspace: its own connections, people, tokens
+and content, nothing shared.
+
+- **First project.** The workspace made at first sign-in. It also keeps the
+  person's project list, so there is no central database of projects to run.
+- **Create.** `POST /v1/projects { name }` makes a project and signs the person
+  in to it as admin. Up to 5 owned projects per person.
+- **Switch.** `POST /v1/projects/<id>/switch` returns a session for another
+  project. The project itself decides: the person's verified e-mail must have an
+  invitation there, so being on a list gives no access.
+- **Join.** An invited teammate opens the invitation link, signs in, and the
+  admin app adds the project to their list.
+- **Rename / delete.** Owner only. Deleting locks the project (removes its
+  invitations and revokes every session); its data stays in its own database
+  until the owner removes it there. The first project cannot be deleted.
+
+The admin app shows a project menu in the sidebar and a Projects list under
+Settings. Switching reloads the page so nothing from the old project stays
+visible.
+
+Status: written and covered by tests with a fake Firebase; not yet tried on a
+real deployment.

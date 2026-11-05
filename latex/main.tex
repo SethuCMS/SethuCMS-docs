@@ -594,10 +594,23 @@ PATCH & \code{.../records/{rid}} & Update\\
 DELETE & \code{.../records/{rid}} & Delete\\
 POST & \code{/v1/connections/{id}/batch} & Batch writes\\
 GET & \code{/v1/audit} & Query the audit log\\
+GET & \code{/v1/connections/{id}/counts} & Record counts for every collection\\
+GET & \code{.../collections/{name}/count} & Record count for a filter\\
+PUT & \code{.../drafts/{draftId}/schedule} & Schedule a publish\\
+DELETE & \code{.../drafts/{draftId}/schedule} & Cancel the schedule\\
+GET & \code{/v1/admin/origins} & List browser sites allowed (CORS)\\
+POST & \code{/v1/admin/origins} & Allow a browser site\\
+DELETE & \code{/v1/admin/origins/{id}} & Stop allowing a browser site\\
 GET & \code{/v1/health} & Liveness and readiness\\
 \bottomrule
 \end{longtable}
 Write endpoints return \code{READ_ONLY} on read-only connections.
+
+\subsection{Counting records}
+\code{GET .../collections/{name}/count?filter=...&max=1000} answers \code{{"data": {"count": 1000, "exact": false}}}. The gateway counts by paging through the keys with the caller's own permissions, so a count never includes a record that a list would hide, and no adapter has to change. Counting stops at \code{max} (default 1000, at most 10000); \code{exact: false} means ``at least''. The answer is kept for 30 seconds and forgotten when a record is created or deleted through the gateway. \code{GET /v1/connections/{id}/counts} returns the same for every collection the caller can read; a collection whose count fails shows \code{null} and does not stop the others.
+
+\subsection{Singleton collections}
+A collection that holds exactly one record (site settings, a home page) is marked \code{singleton: true} in the schema file. The admin app opens that record directly, with no list, no New and no Delete. The gateway enforces it for every client: a second record is refused with \code{409} (\code{details.reason: "singleton"}), and so is deleting the record or starting a draft for a new one. The check is not atomic, so two creates at the very same moment on an empty collection could both pass; add a unique rule in the database if that matters.
 
 \subsection{Pagination, errors and versioning}
 Pagination is cursor-only. Cursors are opaque, signed and bound to the query, so a client cannot alter the filter between pages. Offset pagination is offered only where the adapter supports it. Responses carry \code{capabilityNotes} listing any emulated or degraded behaviour.
@@ -640,6 +653,9 @@ Check package names on npm, pub.dev and PyPI before committing to them.
 
 \subsection{Hand-written layer}
 Each first-party SDK adds the same small set of behaviours: a \emph{client} (base URL, token, request pipeline), \emph{auth} (token refresh), a \emph{query builder} in the language's idiom, \emph{pagination} as an async iterator over cursors, optional \emph{realtime} helpers, and typed \emph{errors} from the API error codes.
+
+\subsection{TypeScript SDK 0.2.0}
+Version 0.2.0 adds \code{count()} on a query, \code{counts(connectionId)} on the client, and \code{drafts} on a collection with \code{create}, \code{schedule}, \code{cancelSchedule} and \code{publish}. A scheduled draft publishes its latest saved values with the scheduler's permissions; on a serverless gateway \code{schedule} fails with \code{CAPABILITY_UNSUPPORTED}. The release only adds methods, so code written for 0.1.0 keeps working. It is on npm.
 
 \subsection{Rules}
 \begin{enumerate}
@@ -731,6 +747,12 @@ Admin page & Served with a strict content security policy\\
 \bottomrule
 \end{tabularx}\smallskip
 
+\subsection{Browser access (CORS)}
+A website can call the gateway from a browser only if its address is allowed. Requests carry the token in a header and never use cookies, so the gateway never sends \code{Access-Control-Allow-Credentials}, and allowing a site gives it no access by itself. Addresses come from \code{SETHUCMS_ALLOWED_ORIGINS} (exact, fixed) and from the admin screen \emph{CORS origins} (admin only, every change audited). With \code{SETHUCMS_ALLOW_WILDCARD_ORIGINS=1} an admin can add one-label https wildcards such as \code{https://*.preview.example.com}; shared hosting domains such as \code{vercel.app} are always refused. The screen also lists sites that were just refused, with an \emph{Allow this site} button (kept in memory, at most 20, empty after a restart). Preflight \code{OPTIONS} is answered before login, and every answer carries \code{Vary: Origin}. A console message ``blocked by CORS policy'' or a \code{Failed to fetch} with no status usually means the site is not on the list; \code{401} and \code{403} are not CORS problems.
+
+\subsection{Counts and scheduled publishing}
+The admin shows a record count beside each collection; the gateway counts with the caller's permissions, capped at 1000 by default. A timer inside the gateway looks every 15 seconds for scheduled drafts that are due and publishes them. It runs only in a gateway that stays running, so it is off in serverless mode.
+
 \subsection{Known limits}
 Single process per data folder (file state, per-process rate limits and events); three fixed roles; no single sign-on; events cover only changes made through the gateway; a short DNS-rebinding window in the network guard; adapters run in-process, so gRPC adapters are not wired yet.
 
@@ -764,6 +786,7 @@ Start typing & ``Saving draft'', then ``Draft saved'' & Creates the draft, versi
 Keep typing & Saves 0.7 s after the last key & Replaces the draft, version + 1\\
 Preview & Pane updates as you type & Streams the draft merged over the published record\\
 Publish & ``Published'' & Validates, checks for conflicts, writes, removes the draft\\
+Schedule & Pick a date and time under the form & Stores the time in UTC on the draft; the editor stays open\\
 Discard & Draft disappears & Marks discarded; database untouched\\
 Record changed elsewhere & Conflict panel & Refuses with \code{409 record_changed}\\
 \bottomrule
@@ -775,6 +798,9 @@ Record changed elsewhere & Conflict panel & Refuses with \code{409 record_change
   \item \textbf{Fingerprint check.} A draft of an existing record stores a hash of that record. If the row changed since (another editor, or a direct database change), publish stops and shows the difference. The editor reloads, or chooses Publish anyway (\code{force}, recorded in the audit log).
   \item \textbf{Claim before write.} Publish first moves the draft to \code{publishing}, so a double click or retry cannot write twice.
 \end{enumerate}
+
+\subsection{Scheduled publishing}
+An editor can choose a time instead of pressing Publish. The time must include its zone (\code{Z} or \code{+05:30}), be in the future and at most 366 days ahead. At that time the latest saved values are published with the permissions of the person who scheduled it; editing the draft afterwards keeps the schedule. The gateway looks for due drafts every 15 seconds and once at start, so a draft that came due while the gateway was off publishes when it starts again. If publishing fails (the live record changed, the values no longer validate, the person lost access), nothing is published, the schedule is cleared, the reason is kept as \code{scheduleError} and it never retries by itself. The audit log records \code{draft.schedule}, \code{draft.unschedule} and \code{draft.schedule.fail}; a success is the normal \code{draft.publish}. With \code{SETHUCMS_SERVERLESS=1} the call is refused with \code{422 CAPABILITY_UNSUPPORTED}. With several gateways sharing PostgreSQL state the publish is claimed first, so only one publishes; one live test with two gateway instances in the same process on PostgreSQL 16 passed, and it has not been run across separate machines.
 
 \subsection{Storage}
 Drafts live in the gateway's state store, never in the customer database, encrypted with AES-256-GCM bound to the draft id. Read-only connections can hold drafts, but publish is refused on them. Deleting the gateway data folder deletes unpublished drafts; published content stays in the customer database.
@@ -792,6 +818,8 @@ A preview link is \code{base64url(claims).hmac}. Claims name the draft and the t
 \code{PATCH .../drafts/:id} & Save (send \code{version})\\
 \code{DELETE .../drafts/:id} & Discard\\
 \code{POST .../drafts/:id/publish} & Publish (\code{version}, optional \code{force})\\
+\code{PUT .../drafts/:id/schedule} & Schedule the publish (\code{publishAt} with a time zone)\\
+\code{DELETE .../drafts/:id/schedule} & Cancel the schedule\\
 \code{POST .../drafts/:id/preview-link} & Create a preview link\\
 \code{GET /v1/preview/:token[/events]} & Read, then stream the preview\\
 \bottomrule
@@ -854,8 +882,8 @@ Every repository has its own GitHub Actions workflows. They are kept in \code{se
 sethucms & Core and gateway tests on Node 20 and 22, gateway against live PostgreSQL, dependency audit, CodeQL & Builds one container image (gateway with admin inside), pushes it to the GitHub registry, scans it, creates a release\\
 adapter-sdk & Type check, build, tests on Node 20 and 22 & Packed package attached to a release\\
 adapters & Same, plus live PostgreSQL & Packed packages attached to a release\\
-admin & Type check, both builds, check that fonts are bundled, CodeQL & Built app attached to a release\\
-sdk-ts & Type check, build, tests on Node 20 and 22 & Packed package attached to a release\\
+admin & Type check, tests (Node 22), the three builds (separate address, embedded, content-only), check that fonts are bundled, CodeQL & Built app attached to a release\\
+sdk-ts & Type check, build, tests on Node 20 and 22 & Packed package attached to a release; the tag must match the version in \code{package.json}\\
 sdk-python & Tests on Python 3.9 to 3.13, package build & Wheel and source package attached\\
 sdk-dart & Format, analyze, test & Release created\\
 adapter-template-python & Generated protocol code is up to date, tests on Python 3.10 to 3.13 & ---\\
@@ -864,7 +892,7 @@ infra & Compose, Kubernetes and Terraform checks, configuration scan, Dockerfile
 docs & Link check, schema check, PDF build & PDF attached to a release\\
 \bottomrule
 \end{tabularx}\par\smallskip
-Dependabot is switched on in every repository for its package ecosystem and for the workflow actions themselves.
+Dependabot is switched on in every repository for its package ecosystem and for the workflow actions themselves. The admin repository also has a deploy workflow: on a push to \code{main} it type checks, runs the tests, deploys to Vercel and checks the live site. It needs the repository secrets \code{VERCEL_TOKEN}, \code{VERCEL_ORG_ID} and \code{VERCEL_PROJECT_ID}; without them a push only prints a warning and skips the deploy, while a manual run fails.
 
 \subsection{How the linked repositories are built}
 Until the packages are published, the repositories link to each other by folder. A workflow therefore checks out its own repository and the ones it needs side by side, then builds them in dependency order: core, adapter SDK, adapters, gateway, admin. If the repositories are private, add a repository secret named \code{CROSS_REPO_TOKEN} with read access.
@@ -873,7 +901,7 @@ Until the packages are published, the repositories link to each other by folder.
 \code{sethucms/docker/Dockerfile.gateway} builds from the folder that holds the four repositories. The image runs as a non-root user, keeps data in a \code{/data} volume, has a health check, and refuses to start in production mode without the three secrets. The build records provenance and a software bill of materials. The image still contains development dependencies, so it is larger than it needs to be.
 
 \subsection{Not covered yet}
-Deployment to a cloud (Terraform apply, Kubernetes rollout) needs your cloud credentials and is not written. Nothing is published to npm, PyPI or pub.dev yet. The workflows install with \code{--no-frozen-lockfile} until lockfiles are refreshed and committed. They have been checked for valid YAML only; they have not run on GitHub.
+Deployment to a cloud (Terraform apply, Kubernetes rollout) needs your cloud credentials and is not written. The npm packages are published by hand with \code{npm publish}; no workflow publishes them, and nothing is published to PyPI or pub.dev yet. The workflows install with \code{--no-frozen-lockfile} until lockfiles are refreshed and committed. They run on GitHub on every push and pull request.
 
 \subsection{Tooling decision: Node and pnpm}
 The standard is Node 22 with pnpm 9. Bun starts the gateway and passes the unit tests I tried, so it is fine for local use, but it is not the supported path: the folder links, the lockfiles, the workflows and the Docker build were all built and tested on pnpm. Moving to Bun would mean re-testing all of them.
@@ -1810,6 +1838,9 @@ Angular examples keep the token in the browser, which is fine for local
 testing only. The Next.js example keeps it on the server and is the
 pattern to copy for production.
 
+\subsection{From install to a live site}
+Six steps tie the pages together. (1) Run a gateway; scheduled publishing needs one that keeps running, so not serverless mode. (2) Connect the database read-only and expose only the collections the site reads; an optional schema file sets labels and rules and marks a collection \code{singleton: true}. (3) In the website's server code, create a \code{SethuClient} with a viewer token kept in the server environment, then call \code{where(...).list()}, \code{query().first()} for a singleton, and \code{count()}; cache the page so the gateway is asked about once a minute. (4) Build the content-only editor into \code{public/sethu}, add the website's exact address under \emph{CORS origins} (or use \emph{Allow this site} after the first refused call), and give each editor an Editor account. (5) Editors preview with a signed link that needs no token, and schedule from the editor or with \code{drafts.schedule}; the gateway publishes at the time. (6) A page the website has cached shows the change when its cache expires. The common failures are a missing CORS entry (``blocked by CORS policy''), a token with too small a role (\code{403}), and scheduling on a serverless gateway (\code{CAPABILITY_UNSUPPORTED}). Not yet tested: these steps on a live customer site, and counts and scheduling on MySQL, MongoDB and Firestore.
+
 \subsection{What is not there yet}
 
 \begin{itemize}
@@ -2042,6 +2073,8 @@ Hardening & Not started: load tests, penetration review, key-rotation drill, clo
 \bottomrule
 \end{tabularx}\par\smallskip
 Also done beyond the original plan: CI/CD workflows for every repository, a one-image release build, agent guides, all ten 0.1.0 packages on npm, and a hosted gateway with the admin app on Vercel with Firestore state (seven live state-store tests pass against the Firestore emulator). Next, in order: run the container image, Compose file and deploy workflows end to end; run the MongoDB and Firestore adapter tests against real servers; native change capture from the databases; custom roles and webhook screens in the admin app; business and vendor dashboards; a \code{create-sethucms} starter and helper libraries for React and Angular.
+
+Also done in November 2026: record counts, singleton collections, scheduled publishing, the CORS origins screen with one-click allow, a brand file (\code{theme.css}) with contrast fixes in the admin app, and \code{@sethucms/sdk} 0.2.0. These were tested against the memory adapter and, for the multi-gateway publish claim, one PostgreSQL 16 server. Not yet checked: MySQL, MongoDB and Firestore with these features, a screen reader, and real phones.
 
 Estimates assume one or two engineers and are rough planning guesses, not benchmarks.
 

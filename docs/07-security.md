@@ -62,6 +62,10 @@ flowchart LR
 - RBAC at collection level, plus field rules (hide, mask, read-only) and row filters.
 - Permission checks run in the gateway, independent of database grants (defence in depth).
 
+## Browser access (CORS)
+
+Browsers may call the gateway only from sites on an allow-list: exact addresses from `SETHUCMS_ALLOWED_ORIGINS` plus the ones an admin adds under **CORS origins** (every change is audited). Requests carry the token in a header and never use cookies, so the gateway never sends `Access-Control-Allow-Credentials`, and allowing a site gives it no access by itself. Wildcards (`https://*.preview.example.com`, one label, https only) are off unless the owner sets `SETHUCMS_ALLOW_WILDCARD_ORIGINS=1`, and shared hosting domains are always refused. See doc 12.
+
 ## Audit
 
 Append-only, stored in the control plane, never in tenant databases. Record: actor, tenant, connection, collection, record id, operation, before/after diff with sensitive fields redacted, IP, timestamp. Also log connection create/update, credential reads by workers, and permission changes.

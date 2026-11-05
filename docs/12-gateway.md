@@ -38,6 +38,23 @@ flowchart LR
 - `SETHUCMS_SCHEMA_FILE` or `SETHUCMS_SCHEMA` lays a schema over what each database reports: labels, editors, hidden and read-only fields, limits (doc 29). `GET /v1/schema` (admin) shows it.
 - Connections whose adapter can store files accept images and PDFs at `/v1/connections/{id}/files` (doc 31).
 
+## Browser access (CORS)
+
+A website can call the gateway from a browser only if its address is allowed. Requests carry a bearer token in a header and never use cookies, so the gateway never sends `Access-Control-Allow-Credentials`. Allowing a site gives it no access by itself: every request still needs a token, and the token's role decides what it can do.
+
+- **Where to set it.** `SETHUCMS_ALLOWED_ORIGINS` (comma separated, exact addresses, cannot be changed from the admin) and the admin screen **CORS origins** (`/v1/admin/origins`, admin only, every change is audited).
+- **What an address looks like.** Scheme, host and optional port, no path: `https://portal.example.com`, `http://localhost:3000`.
+- **Preview deployments.** With `SETHUCMS_ALLOW_WILDCARD_ORIGINS=1` an admin can add `https://*.preview.example.com`. The star stands for exactly one label, https only, no port. Shared hosting domains such as `vercel.app` and `github.io` are refused. The list of shared hosts is short and is not a full public-suffix list, so use a domain you own.
+- **Allow a refused site in one click.** The screen lists sites that called the gateway and were refused (kept in memory, at most 20, empty after a restart) with an **Allow this site** button.
+- **Preflight.** `OPTIONS` is answered before login and routing. Every answer, errors included, carries `Vary: Origin`.
+
+If the console says "blocked by CORS policy" or the call shows `Failed to fetch` with no status, the usual cause is a site that is not on the list. `401` and `403` are not CORS problems: they mean the token is wrong or its role may not do that.
+
+## Counts and scheduled publishing
+
+- **Counts** (doc 8): the admin shows a number beside each collection. The gateway counts with the caller's permissions, capped at 1000 by default.
+- **Scheduled publishing** (doc 13): a timer inside the gateway looks every 15 seconds for drafts whose time has come and publishes them. It runs only in a gateway that stays running, so it is off in serverless mode.
+
 ## Many databases at once
 
 A connection is a saved row (name, adapter type, mode, settings, encrypted credentials, exposed collections). The registry opens

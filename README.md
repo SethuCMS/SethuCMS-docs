@@ -2,7 +2,7 @@
 
 **One CMS for every database.** SethuCMS connects to SQL, document, key-value and realtime databases (including cloud-hosted ones such as Firebase, Supabase, Neon, MongoDB Atlas, AWS, Google Cloud and Azure) and gives every client stack (Next.js, Flutter, Python, mobile) one REST/GraphQL API and one admin UI.
 
-> Status (0.1.0, released to npm in October 2026): the core, six adapters (memory, PostgreSQL, SQLite, MySQL/MariaDB, MongoDB, Firestore), the gateway, the admin app, drafts, publish, live preview, single sign-on (Google, GitHub and Firebase), per-person workspaces, schema as code, image and PDF storage, change feed and webhooks are built. PostgreSQL, MySQL, MariaDB and SQLite are tested against real servers. MongoDB and Firestore are only tested against stand-ins. A hosted gateway with the admin app runs on Vercel with its state in Firestore (doc 26). The container image, the other deploy workflows and a real identity provider have not been run end to end. Pages 1 to 11 describe the full design (parts of it are still future work); pages 12 to 33 describe what is built and how to run, deploy and use it. See the [roadmap](docs/11-roadmap.md) for what is done and what is next.
+> Status (0.1.0, released to npm in October 2026): the core, six adapters (memory, PostgreSQL, SQLite, MySQL/MariaDB, MongoDB, Firestore), the gateway, the admin app, drafts, publish, live preview, single sign-on (Google, GitHub and Firebase), per-person workspaces, schema as code, image and PDF storage, change feed and webhooks are built. PostgreSQL, MySQL, MariaDB and SQLite are tested against real servers. MongoDB and Firestore are only tested against stand-ins. A hosted gateway with the admin app runs on Vercel with its state in Firestore (doc 26). The container image, the other deploy workflows and a real identity provider have not been run end to end. Pages 1 to 11 describe the full design (parts of it are still future work); pages 12 to 33 describe what is built and how to run, deploy and use it. November 2026 added record counts, singleton collections, scheduled publishing, a CORS origins screen and SDK 0.2.0 (docs 8, 12, 13, 29, 32). See the [roadmap](docs/11-roadmap.md) for what is done and what is next.
 
 ## Reading order
 
@@ -41,6 +41,7 @@
 | 31 | [Images and files](docs/31-files-and-images.md) | Upload, safety rules and limits for images and PDFs stored in Firestore |
 | 32 | [The admin app](docs/32-admin-app.md) | Hosted and content-only builds, the content page, field picker, edit as code |
 | 33 | [How the code is laid out](docs/33-code-layout.md) | The 700-line rule and where each part lives |
+| 34 | [Put it on your website](docs/34-put-it-on-your-website.md) | Read content from your site, let editors work at `/sethu`, allow your site in CORS, preview, schedule and use singletons and counts |
 
 A printable version is in [`latex/`](latex) (`sethucms-design-docs.pdf`). The slide deck (PowerPoint and PDF) is in [`presentations/`](presentations). Instructions for coding agents are in each repository's `AGENTS.md`. Decision records live in [`docs/adr/`](docs/adr). Machine-readable schemas live in [`schemas/`](schemas).
 

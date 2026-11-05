@@ -56,6 +56,7 @@ h1 em{font-style:normal;color:var(--coral)}
 .float i{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--lime);color:#17231e;font-style:normal;font-weight:700}
 .float small{display:block;color:var(--soft);font-size:.7rem}
 .caption{position:absolute;left:0;bottom:0;font-size:.72rem;color:var(--soft)}
+/* packages */.pkg-group{margin-top:44px}.pkg-group>h3{font-size:1.5rem;letter-spacing:-.04em}.muted{margin-top:6px;color:var(--soft)}.pkg-group .grid{margin-top:20px}.card h3 a{text-decoration:none;font-family:var(--mono);font-size:1rem;letter-spacing:0;word-break:break-all}.card h3 a:hover{text-decoration:underline}.install{display:block;margin-top:6px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--paper);font-size:.8rem;overflow-x:auto;white-space:nowrap;user-select:all}
 /* band */
 .band{background:#17231e;color:#f5f3ee;padding:56px 0}
 .band .wrap{display:grid;grid-template-columns:1fr 1.4fr;gap:32px;align-items:center}
@@ -99,7 +100,7 @@ footer nav{display:flex;gap:22px;flex-wrap:wrap}
 <div class="wrap">
 <header>
   <a class="brand" href="#top" aria-label="SethuCMS home"><img src="logo.svg" alt="">sethucms</a>
-  <nav class="links" aria-label="Main"><a href="#how">How it works</a><a href="#security">Security</a><a href="#status">Status</a><a href="https://github.com/SethuCMS/sethucms-docs">Docs</a></nav>
+  <nav class="links" aria-label="Main"><a href="#how">How it works</a><a href="#new">What’s new</a><a href="#packages">Packages</a><a href="#security">Security</a><a href="#status">Status</a><a href="https://github.com/SethuCMS/sethucms-docs">Docs</a></nav>
   <div class="head-actions"><a class="btn btn-line" href="https://github.com/SethuCMS">GitHub</a><a class="btn btn-dark" href="https://sethucms-admin.vercel.app">Open the admin</a></div>
 </header>
 
@@ -113,14 +114,14 @@ footer nav{display:flex;gap:22px;flex-wrap:wrap}
       <a class="btn btn-coral" href="https://github.com/SethuCMS/sethucms-docs">Read how to run it</a>
       <a class="btn btn-line" href="https://sethucms-admin.vercel.app">Open the admin</a>
     </div>
-    <div class="facts"><span><b>Your data</b> never passes through us</span><span><b>One person</b>, one login, one authenticator</span></div>
+    <div class="facts"><span><b>Your data</b> never passes through us</span><span><b>One person</b>, one login: Google, GitHub or an authenticator</span></div>
   </div>
 
   <div class="stage" aria-label="Illustration of the admin panel">
     <div class="disc"></div>
     <div class="window">
       <div class="win-in">
-        <div class="win-side"><div class="logo"><img src="logo.svg" alt="">sethucms</div><span class="on">Home</span><span>Content</span><span>Connections</span><span>Roles and access</span><span>Audit log</span></div>
+        <div class="win-side"><div class="logo"><img src="logo.svg" alt="">sethucms</div><span class="on">Home</span><span>Content</span><span>Connections</span><span>Roles and access</span><span>Projects</span><span>Audit log</span></div>
         <div class="win-main">
           <h3>Your connections</h3>
           <div class="row"><b>Orders database</b><span class="ok">Healthy</span></div>
@@ -150,18 +151,54 @@ footer nav{display:flex;gap:22px;flex-wrap:wrap}
   <ol class="steps">
     <li><h3>Run the gateway</h3><p>Start it next to your database, on your computer or a server. The first start prints a one-time admin token.</p></li>
     <li><h3>Connect your database</h3><p>Open the admin, add a connection, and start read-only. Choose which tables to expose as content.</p></li>
-    <li><h3>Add your team</h3><p>Create a person for each teammate with a role, and have them scan an authenticator code. Then revoke the first token.</p></li>
+    <li><h3>Add your team</h3><p>Invite teammates by e-mail with a role. They sign in with Google or GitHub, or an authenticator code on your own server. Then revoke the first token.</p></li>
   </ol>
   <pre aria-label="Commands to start the gateway"><b>cd</b> sethucms
 <b>sh</b> scripts/build-all.sh
 <b>sh</b> scripts/run-local.sh   <span style="opacity:.55"># http://127.0.0.1:8080</span></pre>
 </section>
 
+<section class="block" id="new" style="padding-top:0">
+  <div class="kicker">What’s new</div>
+  <h2 class="title">More ways to work with your content.</h2>
+  <p class="sub">Recent additions. Each one is covered by tests; the hosted pieces are still being tried on a real deployment.</p>
+  <div class="grid">
+    <div class="card lime"><h3>Projects</h3><p>One person can have several projects, each with its own connections, people and content, and switch between them from the sidebar. Invite teammates by e-mail.</p></div>
+    <div class="card"><h3>Schema as code</h3><p>Describe fields, labels, editors and which fields to hide in a file that lives with your code. It can tighten rules; it never loosens what your database enforces.</p></div>
+    <div class="card"><h3>Files and images</h3><p>Upload files with type checks, content sniffing, metadata stripping and storage limits. Files stay private unless you publish them.</p></div>
+    <div class="card"><h3>Google and GitHub sign-in</h3><p>Teammates sign in with an account they already have. Roles still decide what each person can do.</p></div>
+    <div class="card"><h3>Choose the fields you see</h3><p>Show or hide fields while editing, and switch any field to edit as raw code when you need to.</p></div>
+    <div class="card"><h3>Smaller, clearer code</h3><p>Every source file stays under 700 lines, so the project is easier to read, review and trust.</p></div>
+  </div>
+</section>
+
+<section class="block" id="packages" style="padding-top:0">
+  <div class="kicker">Packages</div>
+  <h2 class="title">Install only what you need.</h2>
+  <p class="sub">SethuCMS is published as small packages on npm, a free library of JavaScript code. Pick the ones for your job and install them with one command. You can browse all of them on <a href="https://www.npmjs.com/org/sethucms">the SethuCMS npm page</a>.</p>
+  <div class="pkg-group"><h3>Use SethuCMS in your app</h3><p class="muted">Read and write content from your website or app.</p><div class="grid">
+    <div class="card"><h3><a href="https://www.npmjs.com/package/@sethucms/sdk" rel="noopener">@sethucms/sdk</a></h3><p>The TypeScript client for the SethuCMS API. Works in Node 20 or newer, browsers and edge runtimes.</p><code class="install">npm install @sethucms/sdk</code></div>
+  </div></div>
+  <div class="pkg-group"><h3>Connect a database</h3><p class="muted">Install the one that matches the database you already run.</p><div class="grid">
+    <div class="card"><h3><a href="https://www.npmjs.com/package/@sethucms/adapter-postgres" rel="noopener">@sethucms/adapter-postgres</a></h3><p>PostgreSQL.</p><code class="install">npm install @sethucms/adapter-postgres</code></div>
+    <div class="card"><h3><a href="https://www.npmjs.com/package/@sethucms/adapter-mysql" rel="noopener">@sethucms/adapter-mysql</a></h3><p>MySQL and MariaDB.</p><code class="install">npm install @sethucms/adapter-mysql</code></div>
+    <div class="card"><h3><a href="https://www.npmjs.com/package/@sethucms/adapter-mongodb" rel="noopener">@sethucms/adapter-mongodb</a></h3><p>MongoDB.</p><code class="install">npm install @sethucms/adapter-mongodb</code></div>
+    <div class="card"><h3><a href="https://www.npmjs.com/package/@sethucms/adapter-sqlite" rel="noopener">@sethucms/adapter-sqlite</a></h3><p>SQLite, using the SQLite built into Node.js.</p><code class="install">npm install @sethucms/adapter-sqlite</code></div>
+    <div class="card"><h3><a href="https://www.npmjs.com/package/@sethucms/adapter-firestore" rel="noopener">@sethucms/adapter-firestore</a></h3><p>Firestore (Firebase).</p><code class="install">npm install @sethucms/adapter-firestore</code></div>
+  </div></div>
+  <div class="pkg-group"><h3>Build your own</h3><p class="muted">For people who write adapters or tools on top of SethuCMS.</p><div class="grid">
+    <div class="card"><h3><a href="https://www.npmjs.com/package/@sethucms/core" rel="noopener">@sethucms/core</a></h3><p>Shared types: content model, query language, permissions and errors.</p><code class="install">npm install @sethucms/core</code></div>
+    <div class="card"><h3><a href="https://www.npmjs.com/package/@sethucms/adapter-sdk" rel="noopener">@sethucms/adapter-sdk</a></h3><p>The adapter contract, a safety layer, and a test suite to check a new adapter.</p><code class="install">npm install @sethucms/adapter-sdk</code></div>
+    <div class="card"><h3><a href="https://www.npmjs.com/package/@sethucms/adapter-memory" rel="noopener">@sethucms/adapter-memory</a></h3><p>An in-memory adapter for tests, demos and as a starting template.</p><code class="install">npm install @sethucms/adapter-memory</code></div>
+    <div class="card"><h3><a href="https://www.npmjs.com/package/@sethucms/adapter-sql-kit" rel="noopener">@sethucms/adapter-sql-kit</a></h3><p>Shared building blocks for the PostgreSQL, MySQL and SQLite adapters.</p><code class="install">npm install @sethucms/adapter-sql-kit</code></div>
+  </div></div>
+</section>
+
 <section class="block" id="security" style="padding-top:0">
   <div class="kicker">Security first</div>
   <h2 class="title">Built so the safe way is the default.</h2>
   <div class="grid">
-    <div class="card lime"><h3>One login per person</h3><p>Sign in with a username and a six-digit authenticator code. No shared password.</p></div>
+    <div class="card lime"><h3>One login per person</h3><p>Sign in with Google or GitHub, or with an authenticator code on your own server. No shared password.</p></div>
     <div class="card"><h3>Roles that mean something</h3><p>Admins manage connections and people. Editors work on content. Viewers read published content only.</p></div>
     <div class="card"><h3>Read-only first</h3><p>A new connection starts read-only. New tables stay out of the API until someone reviews them.</p></div>
     <div class="card"><h3>A record of every change</h3><p>An audit log shows who changed what and when, and it is built so tampering shows.</p></div>
@@ -173,7 +210,7 @@ footer nav{display:flex;gap:22px;flex-wrap:wrap}
 <section class="block" id="status" style="padding-top:0">
   <div class="kicker">Where it stands</div>
   <h2 class="title">Early, and honest about it.</h2>
-  <p class="sub">SethuCMS is version 0.1.0. This is what has been tested, and what has not.</p>
+  <p class="sub">SethuCMS is version 0.1.0. This is what has been tested, and what has not. Projects, hosted sign-in and file uploads are tested with simulated services and are still being tried on a live deployment.</p>
   <div class="tablewrap"><table>
     <thead><tr><th>Database</th><th>Status</th></tr></thead>
     <tbody>

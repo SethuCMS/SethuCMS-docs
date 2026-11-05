@@ -37,7 +37,7 @@ problem. Restart the gateway after editing the file.
 ## Settings
 
 Collection: `name`, `title`, `titleField`, `strict` (show only the fields listed
-here), `fields`.
+here), `singleton`, `fields`.
 
 Field: `name`, `type` (only checked against the database), `label`,
 `description`, `widget` (`text`, `textarea`, `code`, `image`, `file`), `hidden`,
@@ -52,3 +52,18 @@ Field: `name`, `type` (only checked against the database), `label`,
 
 Admins see the loaded file and where it differs from each connection under
 Settings, Schema.
+
+## Singleton collections
+
+A collection that holds exactly one record (site settings, a home page) is marked
+`singleton: true`:
+
+    { name: 'settings', title: 'Site settings', singleton: true }
+
+The admin then opens that record directly, with no list, no **New** and no
+**Delete**. The gateway enforces it for every client: a second record is refused
+(`409`, `details.reason: "singleton"`), and so is deleting the record or starting a
+draft for a new one. Editing is normal. Remove `singleton` from the file first if
+the record must ever be deleted. The check is not atomic: two creates at the very
+same moment on an empty collection could both pass, so add a unique rule in the
+database if that matters.
