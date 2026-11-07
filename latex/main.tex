@@ -93,7 +93,7 @@
 \noindent SethuCMS is a database-agnostic CMS and admin layer. It connects to SQL, document, key-value and realtime databases, including cloud-hosted ones such as Firebase, Supabase, Neon, MongoDB Atlas, AWS, Google Cloud and Azure, and gives every client stack one REST/GraphQL API and one admin UI.
 
 \medskip
-\noindent\textbf{Status (0.1.0, released October 2026):} the core, six adapters (memory, PostgreSQL, SQLite, MySQL/MariaDB, MongoDB, Firestore), the gateway, the admin app, drafts, publish, live preview, single sign-on, the change feed and webhooks are built, and all ten packages are on npm under \code{@sethucms}. PostgreSQL, MySQL, MariaDB and SQLite are tested against real servers; MongoDB and Firestore only against stand-ins. A hosted gateway with the admin app runs on Vercel with its state in Firestore. The early sections describe the full design, parts of which are still future work; the later sections describe what is built and how to build, run, deploy and use it. The Roadmap section lists what is done and what is next. Time and file-count figures are planning estimates, not benchmarks.
+\noindent\textbf{Status (0.1.0, released October 2026):} the core, six adapters (memory, PostgreSQL, SQLite, MySQL/MariaDB, MongoDB, Firestore), the gateway, the admin app, drafts, publish, live preview, single sign-on, the change feed and webhooks are built, and all ten packages are on npm under \code{@sethucms}. PostgreSQL, MySQL, MariaDB, MongoDB and SQLite are tested against real servers, and Firestore against Google\textquotesingle s emulator. A hosted gateway with the admin app runs on Vercel with its state in Firestore. The early sections describe the full design, parts of which are still future work; the later sections describe what is built and how to build, run, deploy and use it. The Roadmap section lists what is done and what is next. Time and file-count figures are planning estimates, not benchmarks.
 \end{abstract}
 
 \tableofcontents
@@ -601,6 +601,7 @@ DELETE & \code{.../drafts/{draftId}/schedule} & Cancel the schedule\\
 GET & \code{/v1/admin/origins} & List browser sites allowed (CORS)\\
 POST & \code{/v1/admin/origins} & Allow a browser site\\
 DELETE & \code{/v1/admin/origins/{id}} & Stop allowing a browser site\\
+GET & \code{/v1/auth/bridge-origin?origin=} & Is this browser site allowed here? (no sign-in)\\
 GET & \code{/v1/health} & Liveness and readiness\\
 \bottomrule
 \end{longtable}
@@ -749,6 +750,8 @@ Admin page & Served with a strict content security policy\\
 
 \subsection{Browser access (CORS)}
 A website can call the gateway from a browser only if its address is allowed. Requests carry the token in a header and never use cookies, so the gateway never sends \code{Access-Control-Allow-Credentials}, and allowing a site gives it no access by itself. Addresses come from \code{SETHUCMS_ALLOWED_ORIGINS} (exact, fixed) and from the admin screen \emph{CORS origins} (admin only, every change audited). With \code{SETHUCMS_ALLOW_WILDCARD_ORIGINS=1} an admin can add one-label https wildcards such as \code{https://*.preview.example.com}; shared hosting domains such as \code{vercel.app} are always refused. The screen also lists sites that were just refused, with an \emph{Allow this site} button (kept in memory, at most 20, empty after a restart). Preflight \code{OPTIONS} is answered before login, and every answer carries \code{Vary: Origin}. A console message ``blocked by CORS policy'' or a \code{Failed to fetch} with no status usually means the site is not on the list; \code{401} and \code{403} are not CORS problems.
+
+In a personal workspace the list holds only the origins its owner added; with \code{SETHUCMS_ADMIN_ORIGINS} set, a workspace allows only the admin addresses plus its own list, not \code{SETHUCMS_ALLOWED_ORIGINS}. \code{GET /v1/auth/bridge-origin?origin=} answers, without a sign-in, whether one address is allowed. Sites that Firebase does not list as authorized domains sign in through a bridge window on the gateway\textquotesingle s own address, which hands the Firebase ID token only to an allowed site (doc 30).
 
 \subsection{Counts and scheduled publishing}
 The admin shows a record count beside each collection; the gateway counts with the caller's permissions, capped at 1000 by default. A timer inside the gateway looks every 15 seconds for scheduled drafts that are due and publishes them. It runs only in a gateway that stays running, so it is off in serverless mode.
@@ -1019,14 +1022,13 @@ SQLite & \code{sqlite} & \code{@sethucms/adapter-sqlite} &
 Node\textquotesingle s built-in \code{node:sqlite} & real SQLite
 files \\
 MySQL / MariaDB & \code{mysql} & \code{@sethucms/adapter-mysql} &
-\code{mysql2} (peer) & \textbf{MariaDB 10.11} and \textbf{MySQL 8.0}
-(real servers, full conformance suite) and Dolt \\
+\code{mysql2} (peer) & \textbf{MySQL 8} and \textbf{MariaDB 11}
+(real servers, in CI, full conformance suite) \\
 MongoDB & \code{mongodb} & \code{@sethucms/adapter-mongodb} &
-\code{mongodb} (peer) & \textbf{FerretDB 1.24} (MongoDB-compatible), not
-MongoDB itself \\
+\code{mongodb} (peer) & \textbf{MongoDB 7} (real server, in CI) \\
 Firestore & \code{firestore} & \code{@sethucms/adapter-firestore} &
-\code{@google-cloud/firestore} (peer) & an \textbf{in-memory fake}, not
-Firestore \\
+\code{@google-cloud/firestore} (peer) & the \textbf{Firestore emulator}
+(in CI); experimental \\
 \end{longtable}\endgroup
 
 Read the "Tested against" column before you rely on an adapter. A
@@ -1163,8 +1165,8 @@ defined (default \code{admin}) \\
 \item
   Sampling can miss rare fields. Declare the collections you care about.
 \item
-  Tested against FerretDB 1.24 only. Real MongoDB behaviour (collation,
-  index use, transactions) is not verified.
+  Tested against MongoDB 7 in CI. Amazon DocumentDB, Azure Cosmos DB for
+  MongoDB and FerretDB are not tested; they do not support every feature.
 \end{itemize}
 
 \subsection{Firestore}
@@ -1200,12 +1202,11 @@ in the vault; otherwise Google default credentials \\
 \item
   Integer ids come from \code{_sethucms_counters}, as for MongoDB.
 \item
-  \textbf{The content adapter was only tested against an in-memory fake
-  that we wrote.} (The gateway\textquotesingle s shared state store, a
-  different piece of code, is also tested against the Firestore
-  emulator; see doc 26.) The adapter has never talked to Firestore or
-  the emulator. Treat this adapter as experimental until you have run it
-  against the emulator or a test project.
+  \textbf{The content adapter is tested against the Firestore emulator in
+  CI, not against a real Firestore project.} (The gateway\textquotesingle s
+  shared state store, a different piece of code, is also tested against
+  the emulator; see doc 26.) Treat it as experimental until you have run
+  it against a test project.
 \end{itemize}
 
 \subsection{Running the live tests against your own server}
@@ -2066,7 +2067,7 @@ run it against a test project before relying on it (doc 18).
 Foundation & Done: core (29 tests), adapter contract and test kit\\
 Security spine & Done: vault, token auth, audit log, network guard, rate limits, idempotency, single sign-on (tested only against a fake identity provider)\\
 First path & Done: PostgreSQL adapter and gateway, tested against a live database\\
-More adapters & Done: memory, PostgreSQL, SQLite, MySQL/MariaDB (real servers), MongoDB and Firestore (stand-ins only). Not started: SQL Server, DynamoDB\\
+More adapters & Done: memory, PostgreSQL, SQLite, MySQL/MariaDB and MongoDB (real servers, in CI), Firestore (emulator; experimental). Not started: SQL Server, DynamoDB, Redis\\
 Admin UI & Done for the first release: connections, content editing with drafts, publish, live preview, access, audit, settings\\
 SDKs & TypeScript SDK published as 0.1.0 and used by four example apps and a live website. Python and Dart written but never run\\
 Hardening & Not started: load tests, penetration review, key-rotation drill, cloud-identity connections\\
@@ -2075,6 +2076,8 @@ Hardening & Not started: load tests, penetration review, key-rotation drill, clo
 Also done beyond the original plan: CI/CD workflows for every repository, a one-image release build, agent guides, all ten 0.1.0 packages on npm, and a hosted gateway with the admin app on Vercel with Firestore state (seven live state-store tests pass against the Firestore emulator). Next, in order: run the container image, Compose file and deploy workflows end to end; run the MongoDB and Firestore adapter tests against real servers; native change capture from the databases; custom roles and webhook screens in the admin app; business and vendor dashboards; a \code{create-sethucms} starter and helper libraries for React and Angular.
 
 Also done in November 2026: record counts, singleton collections, scheduled publishing, the CORS origins screen with one-click allow, a brand file (\code{theme.css}) with contrast fixes in the admin app, and \code{@sethucms/sdk} 0.2.0. These were tested against the memory adapter and, for the multi-gateway publish claim, one PostgreSQL 16 server. Not yet checked: MySQL, MongoDB and Firestore with these features, a screen reader, and real phones.
+
+Also done in November 2026: per-workspace browser origins with \code{SETHUCMS_ADMIN_ORIGINS}, a sign-in bridge so people can sign in from their own sites without editing Firebase\textquotesingle s authorized domains, and a workflow that deploys the gateway to Vercel on every push. The bridge has unit and gateway tests but has not been tried with a real sign-in from another site.
 
 Estimates assume one or two engineers and are rough planning guesses, not benchmarks.
 

@@ -42,6 +42,7 @@ flowchart LR
 | PUT, DELETE | `/v1/connections/{id}/collections/{name}/drafts/{draftId}/schedule` | Publish a draft by itself later, or cancel that (doc 13) |
 | GET, POST | `/v1/admin/origins` | List the browser sites allowed to call the gateway, and allow one; admin only (doc 12) |
 | DELETE | `/v1/admin/origins/{id}` | Stop allowing a browser site; admin only |
+| GET | `/v1/auth/bridge-origin?origin=` | Is this browser site allowed here? No sign-in; used by the sign-in bridge (docs 12 and 30) |
 | GET | `/v1/health` | Liveness and readiness |
 
 Workspace requests use the prefix `/w/{workspaceId}`, for example `/w/{workspaceId}/v1/connections`.

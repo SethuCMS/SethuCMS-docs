@@ -92,6 +92,9 @@ The audit log in this mode writes one document per entry. Each entry carries an 
 ## Operating notes
 
 - Redeploy after changing code: build the Vercel bundle, then deploy it to production. Environment variables are read at deploy time.
+- **Automatic deploys.** The Vercel project is not connected to git, so pushing does not deploy it. The workflow `.github/workflows/deploy-vercel.yml` in the gateway repository tests the code, builds the deployment folder (`node deploy/vercel/build.mjs`, which includes the admin app from `sethucms-admin`), deploys it to production and checks `/v1/health`. It runs on pushes to `main` that touch `apps/api`, `packages/core` or `deploy/vercel`, and on demand. It needs the repository secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID`, and does not change the project's settings.
+- **Settings from a file.** Copy the settings you want into `deploy/vercel/local.env` (kept out of git) and run `bash deploy/vercel/push-env.sh`. It sends each value to the project, and makes a `SETHUCMS_WORKSPACE_SECRET` if the file has none and the project has none, so the secret is never shown or stored. It never replaces an existing secret, because workspaces are tied to it. Deploy afterwards for the values to apply.
+- **What does not work in this mode.** Live events (`/v1/events`), the change feed and webhooks answer `501`, so a browser console showing `501` for `/v1/events` is expected here and harmless.
 - Turn off Vercel Deployment Protection for the gateway project, otherwise browsers and the SDK get a login page instead of JSON.
 - Rate limits are per function instance, so the real limit is higher than the configured one (doc 22).
 - Rotate any secret that has been pasted into a chat, a screenshot or a terminal log. Revoke one-day publishing tokens as soon as the release is done.

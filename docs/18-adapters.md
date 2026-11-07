@@ -5,13 +5,20 @@ The gateway ships with these adapters. Each one is a separate package in `sethuc
 | Adapter | Kind | Package | Driver | Tested against |
 |---|---|---|---|---|
 | Memory | `memory` | `@sethucms/adapter-memory` | none | in-process |
-| PostgreSQL | `postgres` | `@sethucms/adapter-postgres` | `pg` | PostgreSQL 16 |
+| PostgreSQL | `postgres` | `@sethucms/adapter-postgres` | `pg` | PostgreSQL 16 (real server, in CI) |
 | SQLite | `sqlite` | `@sethucms/adapter-sqlite` | Node's built-in `node:sqlite` | real SQLite files |
-| MySQL / MariaDB | `mysql` | `@sethucms/adapter-mysql` | `mysql2` (peer) | **MariaDB 10.11** and **MySQL 8.0** (real servers, full conformance suite) and Dolt |
-| MongoDB | `mongodb` | `@sethucms/adapter-mongodb` | `mongodb` (peer) | **FerretDB 1.24** (MongoDB-compatible), not MongoDB itself |
-| Firestore | `firestore` | `@sethucms/adapter-firestore` | `@google-cloud/firestore` (peer) | an **in-memory fake**, not Firestore |
+| MySQL / MariaDB | `mysql` | `@sethucms/adapter-mysql` | `mysql2` (peer) | **MySQL 8** and **MariaDB 11** (real servers, in CI, full conformance suite) |
+| MongoDB | `mongodb` | `@sethucms/adapter-mongodb` | `mongodb` (peer) | **MongoDB 7** (real server, in CI) |
+| Firestore | `firestore` | `@sethucms/adapter-firestore` | `@google-cloud/firestore` (peer) | the **Firestore emulator** (in CI). Experimental |
 
-Read the "Tested against" column before you rely on an adapter. A compatible server is not the real thing: MySQL, MariaDB, MongoDB and Firestore have not been run through these tests, and you should run the live tests (below) against your own server before production use.
+Read the "Tested against" column before you rely on an adapter. "Tested" means the real server (or Google's emulator for Firestore) in the continuous-integration workflow `.github/workflows/databases.yml`. Run the live tests (below) against your own server before production use.
+
+**Services that speak the same protocol.** The `postgres` adapter is meant to work with Supabase, Neon, RDS, Aurora, Cloud SQL, AlloyDB, Azure PostgreSQL and CockroachDB, and the `mysql` adapter with TiDB, using only a connection string. **None of these has a test of its own yet**, so treat them as untested until you have tried one on a copy of your data. Notes:
+- Poolers in transaction mode (Supabase on port 6543, Neon's `-pooler` host) do not keep session state or prepared statements. Use the direct or session-mode address if a connection fails.
+- Supabase's service-role key bypasses row-level security (doc 7).
+- Turso/libSQL is **not** supported: the SQLite adapter opens only local files.
+
+**Not built:** SQL Server, DynamoDB (and Redis). See the database research in the roadmap (doc 11) for the order we plan them in.
 
 Peer drivers are not installed for you. Add the one you need to the gateway (`pnpm add mysql2` in `apps/api`).
 
@@ -68,7 +75,7 @@ MongoDB has no schema, so the adapter works out collection shapes by **sampling 
 - Integer ids are issued from a counter collection `_sethucms_counters`; declared and discovered shapes are kept in `_sethucms_schemas`. Both are hidden from content.
 - Queries are built as typed documents from the allowlisted filter tree. Operators in user values (`$ne`, `$where`) are rejected before they reach the driver.
 - Sampling can miss rare fields. Declare the collections you care about.
-- Tested against FerretDB 1.24 only. Real MongoDB behaviour (collation, index use, transactions) is not verified.
+- Tested against MongoDB 7 in CI. Amazon DocumentDB, Azure Cosmos DB for MongoDB and FerretDB are not tested; they do not support every feature.
 
 ## Firestore
 
@@ -87,8 +94,7 @@ MongoDB has no schema, so the adapter works out collection shapes by **sampling 
   The saved fields are the ones records may use, and they cannot be edited yet. Choose them with the data in mind. A collection made by hand in the Firebase console is different: its fields are guessed from the documents already in it.
   This is offered only for Firestore. It is not offered for SQL databases, where creating tables stays a migration step (doc 17).
 - **Files.** A Firestore connection can also store images and PDFs, with cleaning, a type check on the bytes and limits (doc 31).
-- **The content adapter was only tested against an in-memory fake that we wrote.** (The gateway's shared state store, a different piece of code, is also tested against the Firestore emulator; see doc 26.)
-  The adapter has never talked to Firestore or the emulator. Treat this adapter as experimental until you have run it against the emulator or a test project.
+- **The content adapter is tested against the Firestore emulator in CI, not against a real Firestore project.** (The gateway's shared state store, a different piece of code, is also tested against the emulator; see doc 26.) Treat it as experimental until you have run it against a test project.
 
 ## Running the live tests against your own server
 

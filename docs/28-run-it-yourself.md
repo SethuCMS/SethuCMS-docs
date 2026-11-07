@@ -50,8 +50,9 @@ Add each teammate the same way. Give them **Editor** to work with content or **V
 |---|---|
 | PostgreSQL | Tested against the real database |
 | SQLite | Tested against the real database |
-| MySQL, MariaDB, MongoDB | Tested against compatible servers only. Try on a copy of your data |
-| Firestore | Tested against a fake only. Experimental |
+| MySQL 8, MariaDB 11, MongoDB 7 | Tested against the real servers in CI |
+| Firestore | Tested against Google's emulator in CI, not a real project. Experimental |
+| Supabase, Neon, Aurora, CockroachDB, TiDB | Should work through the PostgreSQL or MySQL adapter, but are not tested. Try on a copy of your data (doc 18) |
 | SQL Server | **Not supported yet** |
 
 ## Step 4. Use the content in your website or app

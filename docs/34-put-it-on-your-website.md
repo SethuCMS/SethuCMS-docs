@@ -121,6 +121,7 @@ await articles.drafts.cancelSchedule(draft.id);
 | You see | Cause | Fix |
 |---|---|---|
 | The editor says "blocked by CORS policy" or `Failed to fetch` | Your website's address is not allowed | Add it under **CORS origins** (step 4) |
+| Sign-in fails with "not on the authorized domains" | Firebase lists only some addresses | Use **Sign in through SethuCMS** on the sign-in screen, and make sure your site is under **CORS origins**. You do not need to edit the Firebase console (doc 30) |
 | `401` | Token missing, wrong or expired | Create a new token; keep it on the server |
 | `403` | The token's role cannot do that, or the collection is not exposed | Check the role and the exposed collections |
 | Schedule says `CAPABILITY_UNSUPPORTED` | The gateway runs in serverless mode | Use a gateway that stays running |

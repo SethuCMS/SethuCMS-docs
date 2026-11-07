@@ -46,6 +46,8 @@ A website can call the gateway from a browser only if its address is allowed. Re
 - **What an address looks like.** Scheme, host and optional port, no path: `https://portal.example.com`, `http://localhost:3000`.
 - **Preview deployments.** With `SETHUCMS_ALLOW_WILDCARD_ORIGINS=1` an admin can add `https://*.preview.example.com`. The star stands for exactly one label, https only, no port. Shared hosting domains such as `vercel.app` and `github.io` are refused. The list of shared hosts is short and is not a full public-suffix list, so use a domain you own.
 - **Allow a refused site in one click.** The screen lists sites that called the gateway and were refused (kept in memory, at most 20, empty after a restart) with an **Allow this site** button.
+- **Workspaces.** In a personal workspace (doc 30) the screen lists only the origins its owner added. With `SETHUCMS_ADMIN_ORIGINS` set, a workspace allows only those admin addresses plus its own list, not `SETHUCMS_ALLOWED_ORIGINS`.
+- **Is this site allowed?** `GET /v1/auth/bridge-origin?origin=<address>` needs no sign-in and answers `{ data: { allowed: true | false } }` from the same list (environment, added and, when switched on, wildcard entries). The sign-in bridge uses it (doc 30).
 - **Preflight.** `OPTIONS` is answered before login and routing. Every answer, errors included, carries `Vary: Origin`.
 
 If the console says "blocked by CORS policy" or the call shows `Failed to fetch` with no status, the usual cause is a site that is not on the list. `401` and `403` are not CORS problems: they mean the token is wrong or its role may not do that.

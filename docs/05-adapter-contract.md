@@ -12,9 +12,9 @@ An adapter is the only code that knows a database's native language. It turns th
 | `find(query)` | List records by filter, sort, projection, cursor |
 | `get(collection, id)` | Fetch one record |
 | `create / update / delete` | Write operations (blocked on read-only connections) |
-| `batch(ops)` | Multiple writes, atomic only if `transactions` is true |
-| `subscribe(query)` | Optional realtime stream |
 | `close()` | Release resources |
+
+Two more operations are optional: `createCollection` (used when an administrator declares a new collection) and `finishBulkLoad` (used by migration). The interface has no `batch` or `subscribe`; live change streams are handled in the gateway (doc 24).
 
 ## Capability flags
 
@@ -40,7 +40,7 @@ The gateway and admin UI use these flags to hide or disable unsupported controls
 |---|---|---|---|
 | Introspection | Read catalog (information_schema) | Sample documents, infer draft schema | Read table key schema, sample items |
 | Filters | Parameterised SQL | Native filter objects | Key conditions only |
-| Pagination | Keyset | `startAfter` cursor | `LastEvaluatedKey` |
+| Pagination | `LIMIT`/`OFFSET` under a signed cursor | Signed cursor over the native position | `LastEvaluatedKey` |
 | Relations | Foreign keys | Reference fields or embedding | Denormalised |
 | Transactions | Full | Limited | Limited |
 
@@ -76,4 +76,4 @@ An adapter is not releasable until all pass.
 4. Register in `registry.ts`.
 5. Pass conformance and security suites.
 
-Nothing in core, api or admin changes.
+A new adapter is not fully self-contained. The gateway registers adapters in `apps/api/src/connections/adapters.ts`, and the admin's connection form for it is in `src/lib/adapterForms.ts`. A new SQL dialect also means editing `sethucms-adapters/packages/sql-kit` (its dialect list is closed, and paging is written as `LIMIT`/`OFFSET`, so a database that pages differently, such as SQL Server, needs a hook there). To add a database without changing the gateway, run it as a separate process over gRPC (doc 23).

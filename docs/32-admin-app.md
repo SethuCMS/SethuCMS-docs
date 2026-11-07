@@ -37,6 +37,12 @@ If the website sets a Content-Security-Policy, `/sethu` needs its own, looser on
 
 Admins add and remove the browser sites allowed to call the gateway under **CORS origins**, and see the sites that were just refused with an **Allow this site** button (doc 12). The first time a person connects from a site that is not allowed, the connect screen explains the cause and what to add.
 
+## Signing in from another site
+
+When the admin runs on a site that Firebase does not list as an authorized domain, such as an editor at `/sethu` on your website, the Google and GitHub buttons would fail. The sign-in screen then offers **Sign in through SethuCMS**, which opens a window on the gateway's own address and passes the sign-in back to your site. The site must be listed under **CORS origins** (doc 12). How it works and its limits are in doc 30.
+
+The window is the `#/bridge` page of the admin app served by the gateway, so it needs no extra setup there.
+
 ## Branding and accessibility
 
 - Colours and type come from CSS variables in `tokens-base.css`. To rebrand without rebuilding, edit `public/theme.css`: it is loaded after the app's own styles, so write overrides as `:root:root { --accent: ...; }`.
